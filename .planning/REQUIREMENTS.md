@@ -104,4 +104,61 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 
 ## Traceability
 
-Populated by gsd-roadmapper after ROADMAP.md generation.
+Every v1 requirement maps to exactly one phase in ROADMAP.md. Coverage: **42/42** ✓
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| FOUND-01 | Phase 1 | Pending |
+| FOUND-02 | Phase 1 | Pending |
+| FOUND-03 | Phase 1 | Pending |
+| FOUND-04 | Phase 1 | Pending |
+| FOUND-05 | Phase 1 | Pending |
+| FOUND-06 | Phase 1 | Pending |
+| MATH-01 | Phase 1 | Pending |
+| MATH-02 | Phase 3 | Pending |
+| MATH-03 | Phase 3 | Pending |
+| MATH-04 | Phase 3 | Pending |
+| MATH-05 | Phase 3 | Pending |
+| BLDR-01 | Phase 1 | Pending |
+| BLDR-02 | Phase 1 | Pending |
+| BLDR-03 | Phase 1 | Pending |
+| BLDR-04 | Phase 1 | Pending |
+| BLDR-05 | Phase 1 | Pending |
+| BLDR-06 | Phase 3 | Pending |
+| BLDR-07 | Phase 3 | Pending |
+| BLDR-08 | Phase 3 | Pending |
+| PUB-01 | Phase 2 | Pending |
+| PUB-02 | Phase 2 | Pending |
+| PUB-03 | Phase 3 | Pending |
+| PUB-04 | Phase 3 | Pending |
+| PUB-05 | Phase 3 | Pending |
+| PUB-06 | Phase 3 | Pending |
+| PAY-01 | Phase 4 | Pending |
+| PAY-02 | Phase 4 | Pending |
+| PAY-03 | Phase 4 | Pending |
+| PAY-04 | Phase 4 | Pending |
+| PAY-05 | Phase 4 | Pending |
+| PAY-06 | Phase 4 | Pending |
+| PAY-07 | Phase 4 | Pending |
+| NOTIF-01 | Phase 5 | Pending |
+| NOTIF-02 | Phase 5 | Pending |
+| NOTIF-03 | Phase 5 | Pending |
+| NOTIF-04 | Phase 5 | Pending |
+| DASH-01 | Phase 6 | Pending |
+| DASH-02 | Phase 6 | Pending |
+| DASH-03 | Phase 4 | Pending |
+| DASH-04 | Phase 6 | Pending |
+| DASH-05 | Phase 4 | Pending |
+| DASH-06 | Phase 6 | Pending |
+
+### Per-Phase Summary
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| Phase 1: Foundation | FOUND-01, FOUND-02, FOUND-03, FOUND-04, FOUND-05, FOUND-06, MATH-01, BLDR-01, BLDR-02, BLDR-03, BLDR-04, BLDR-05 | 12 |
+| Phase 2: Stripe Connect Onboarding | PUB-01, PUB-02 | 2 |
+| Phase 3: Publish + Public Enrollment Page | MATH-02, MATH-03, MATH-04, MATH-05, BLDR-06, BLDR-07, BLDR-08, PUB-03, PUB-04, PUB-05, PUB-06 | 11 |
+| Phase 4: Checkout + Subscription Lifecycle | PAY-01, PAY-02, PAY-03, PAY-04, PAY-05, PAY-06, PAY-07, DASH-03, DASH-05 | 9 |
+| Phase 5: Notifications + Welcome Packet | NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04 | 4 |
+| Phase 6: Dashboard Metrics + Redemption | DASH-01, DASH-02, DASH-04, DASH-06 | 4 |
+| **Total** | | **42** |
