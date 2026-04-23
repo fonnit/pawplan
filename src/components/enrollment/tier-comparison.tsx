@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { AccentColor } from '@prisma/client';
 import { toast } from 'sonner';
 import type { PublishedPlanTierSnapshot } from '@/lib/stripe/types';
@@ -40,16 +41,40 @@ interface TierComparisonProps {
 
 export function TierComparison({ clinicSlug, clinicAccentColor, tiers }: TierComparisonProps) {
   const clinicAccent = ACCENT_HEX[clinicAccentColor];
+  const [pendingTierId, setPendingTierId] = useState<string | null>(null);
 
-  const onEnroll = (tier: PublishedPlanTierSnapshot) => {
-    // PITFALLS #8: defer Checkout session creation to button click.
-    // Phase 4 replaces this stub with a fetch to /api/stripe/checkout.
-    console.info('[enroll-stub]', {
-      clinicSlug,
-      tierKey: tier.tierKey,
-      priceId: tier.stripePriceId,
-    });
-    toast.info('Checkout lands in Phase 4. Your tier selection was noted.');
+  // PITFALLS #8: defer Checkout session creation to button click so a
+  // newsletter-blast burst doesn't torch the Stripe rate limit. The route
+  // below also uses a per-minute idempotency bucket so rage-clicks dedupe
+  // server-side, but disabling the button locally is the cheaper guard.
+  const onEnroll = async (tier: PublishedPlanTierSnapshot) => {
+    if (pendingTierId) return; // Guard rage-clicks; idempotency key handles the rest server-side.
+    setPendingTierId(tier.tierId);
+    try {
+      const res = await fetch(`/api/enroll/${clinicSlug}/${tier.tierId}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        toast.error(
+          body.error === 'clinic_not_accepting_enrollments'
+            ? 'This clinic is not currently accepting enrollments.'
+            : 'We could not start checkout. Please try again.',
+        );
+        setPendingTierId(null);
+        return;
+      }
+      const { url } = (await res.json()) as { url: string };
+      // Intentionally do NOT clear pendingTierId before redirect — we want
+      // the button to stay disabled during the brief window before Stripe
+      // takes over the page.
+      window.location.assign(url);
+    } catch (err) {
+      console.error('[enroll] checkout fetch failed', err);
+      toast.error('We could not start checkout. Please try again.');
+      setPendingTierId(null);
+    }
   };
 
   const isThree = tiers.length === 3;
@@ -108,10 +133,13 @@ export function TierComparison({ clinicSlug, clinicAccentColor, tiers }: TierCom
               <button
                 type="button"
                 onClick={() => onEnroll(tier)}
-                className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+                disabled={pendingTierId !== null}
+                className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ backgroundColor: PAWPLAN_PRIMARY }}
               >
-                Start {tier.tierName} membership
+                {pendingTierId === tier.tierId
+                  ? 'Redirecting to Stripe…'
+                  : `Start ${tier.tierName} membership`}
               </button>
             </article>
           );
