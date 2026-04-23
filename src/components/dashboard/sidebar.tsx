@@ -1,14 +1,30 @@
 'use client';
 
 import Link from 'next/link';
+import type { Route } from 'next';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Settings } from 'lucide-react';
+import { LayoutGrid, Settings, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const NAV_ITEMS = [
-  { href: '/dashboard' as const, label: 'Plans', icon: LayoutGrid, matchPrefix: '/dashboard' },
-  { href: '/dashboard' as const, label: 'Profile', icon: Settings, matchPrefix: '/dashboard/profile' },
-] as const;
+interface NavItem {
+  href: Route;
+  label: string;
+  icon: typeof LayoutGrid;
+  matchPrefix: string;
+}
+
+const NAV_ITEMS: readonly NavItem[] = [
+  { href: '/dashboard', label: 'Plans', icon: LayoutGrid, matchPrefix: '/dashboard' },
+  {
+    // Typed-routes will pick this up on the next build; Route cast keeps dev/tsc
+    // green in the interim (the file /dashboard/members/page.tsx exists on disk).
+    href: '/dashboard/members' as Route,
+    label: 'Members',
+    icon: Users,
+    matchPrefix: '/dashboard/members',
+  },
+  { href: '/dashboard', label: 'Profile', icon: Settings, matchPrefix: '/dashboard/profile' },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -17,12 +33,17 @@ export function Sidebar() {
       <nav className="flex flex-col gap-1 p-3">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
-          // Plans matches /dashboard but NOT /dashboard/profile.
+          // Plans matches /dashboard + /dashboard/plans (not /dashboard/profile, /dashboard/members).
           const isProfile = item.matchPrefix === '/dashboard/profile';
+          const isMembers = item.matchPrefix === '/dashboard/members';
           const active = isProfile
             ? pathname.startsWith('/dashboard/profile')
-            : pathname === '/dashboard' ||
-              (pathname.startsWith('/dashboard/plans') && !pathname.startsWith('/dashboard/profile'));
+            : isMembers
+              ? pathname.startsWith('/dashboard/members')
+              : (pathname === '/dashboard' ||
+                  pathname.startsWith('/dashboard/plans')) &&
+                !pathname.startsWith('/dashboard/profile') &&
+                !pathname.startsWith('/dashboard/members');
           return (
             <Link
               key={item.label}
