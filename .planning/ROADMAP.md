@@ -50,7 +50,12 @@ Plans:
   2. The webhook endpoint verifies Stripe signatures, dedupes by `event.id` via a `stripe_events` idempotency store, and persists Connect capability state on every `account.updated` event.
   3. The Publish button is disabled with a specific actionable reason ("Your Stripe account needs bank info") until `charges_enabled && payouts_enabled && !requirements.disabled_reason` is true.
   4. A clinic owner who abandons onboarding mid-flow sees a dashboard banner listing `requirements.currently_due` with a one-click link to resume.
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Prisma schema extensions (Connect fields on Clinic, StripeEvent idempotency table, OnboardingState enum) + RLS + shared TS types (PUB-01, PUB-02)
+- [ ] 02-02-PLAN.md — `stripe@22.0.2` pinned client + webhook signature verification + idempotency helpers + 5-case unit test suite (PUB-02)
+- [ ] 02-03-PLAN.md — Connect UI (Connect Stripe card + onboarding banner + gated Publish button) + `/api/stripe/connect/{link,refresh}` + `/api/stripe/webhook` account.updated handler (PUB-01, PUB-02)
 **UI hint**: yes
 
 ### Phase 3: Publish + Public Enrollment Page
