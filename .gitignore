@@ -57,3 +57,5 @@ prisma/*.db
 # misc
 .idea
 .vscode
+
+/src/generated/prisma

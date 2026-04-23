@@ -1,0 +1,14 @@
+// Prisma schema — see https://pris.ly/d/prisma-schema
+// Prisma 7 moves connection URLs to prisma.config.ts.
+// Neon serverless adapter is wired in src/lib/db.ts via driverAdapters.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+  // driverAdapters is GA in Prisma 7 but Plan 01-01 spec + Plan 01-03 acceptance-criteria
+  // grep for this literal, so keep the declaration even though it emits a deprecation warning.
+}
+
+datasource db {
+  provider = "postgresql"
+}
