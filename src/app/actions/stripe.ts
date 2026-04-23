@@ -34,11 +34,22 @@ export async function startConnectOnboarding(): Promise<never> {
 
   let accountId = clinic.stripeAccountId;
   if (!accountId) {
-    const account = await createConnectAccount({
-      clinicId: clinic.id,
-      ownerEmail: session.user.email,
-      practiceName: clinic.practiceName,
-    });
+    let account;
+    try {
+      account = await createConnectAccount({
+        clinicId: clinic.id,
+        ownerEmail: session.user.email,
+        practiceName: clinic.practiceName,
+      });
+    } catch (err) {
+      // Surface the Stripe error to server logs so operators can see the
+      // precise reason (platform-Connect not enabled, restricted account,
+      // key rotated, etc.) instead of a generic 500.
+      console.error('stripe.accounts.create failed', {
+        message: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
     accountId = account.id;
     // Persist the ID immediately so a crash between now and AccountLink
     // creation doesn't create a dangling Stripe account on retry.
