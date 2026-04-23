@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState, useTransition, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { computeBreakEven } from '@/lib/pricing/breakEven';
@@ -28,6 +30,7 @@ export function PlanBuilder({
   initialInputs: PlanBuilderInputs;
   initialPlanId?: string;
 }) {
+  const router = useRouter();
   const [inputs, setInputs] = useState<PlanBuilderInputs>(initialInputs);
   const [planId, setPlanId] = useState<string | undefined>(initialPlanId);
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
@@ -48,7 +51,7 @@ export function PlanBuilder({
     setInputs((prev) => ({ ...prev, ...next }));
   }
 
-  function save() {
+  function save(opts: { manual: boolean } = { manual: false }) {
     // ME-04: coalesce concurrent calls — a manual click mid-autosave (or
     // vice versa) must not fire a second request. The second call drops
     // silently; the in-flight save will pick up the latest `inputs`
@@ -63,14 +66,20 @@ export function PlanBuilder({
           setPlanId(res.planId);
           setSaveState({ kind: 'saved', at: res.updatedAt });
           dirtyRef.current = false;
+          if (opts.manual) {
+            toast.success('Draft saved. Rename tiers and publish from Plans.');
+            router.push('/dashboard/plans');
+          }
         } else {
           setSaveState({ kind: 'error', message: res.error });
+          if (opts.manual) toast.error(`Couldn't save: ${res.error}`);
         }
       } catch (err) {
         // Thrown (not returned) errors — RLS reject, missing clinic,
         // network blip — otherwise leave the button stuck on "saving".
         const message = err instanceof Error ? err.message : 'Save failed';
         setSaveState({ kind: 'error', message });
+        if (opts.manual) toast.error(`Couldn't save: ${message}`);
       } finally {
         savingRef.current = false;
       }
@@ -84,7 +93,7 @@ export function PlanBuilder({
       clearInterval(autosaveTimerRef.current);
       autosaveTimerRef.current = setInterval(autosaveTick, 30_000);
     }
-    save();
+    save({ manual: true });
   }
 
   function autosaveTick() {
