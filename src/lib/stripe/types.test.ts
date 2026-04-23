@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { isPublishReady, deriveOnboardingState } from './types';
+import {
+  isPublishReady,
+  deriveOnboardingState,
+  deriveMemberStatusFromSubscription,
+  CHECKOUT_CUSTOM_FIELD_KEYS,
+  SPECIES_OPTIONS,
+  type MemberStatus,
+} from './types';
 
 describe('isPublishReady', () => {
   it('returns true when charges + payouts enabled and no disabled reason', () => {
@@ -108,5 +115,41 @@ describe('deriveOnboardingState', () => {
         stripeAccountId: 'acct_1',
       }),
     ).toBe('in_progress');
+  });
+});
+
+// ─── Phase 4 — Member lifecycle type contracts (PAY-07, BLDR-07) ────────────
+
+describe('deriveMemberStatusFromSubscription', () => {
+  // Stripe Subscription.Status enum values per @types/stripe v22.0.2.
+  // `paused` was added by Stripe in 2024; the unknown-status default flags it.
+  const cases: Record<string, MemberStatus> = {
+    active: 'active',
+    trialing: 'active',
+    past_due: 'past_due',
+    unpaid: 'past_due',
+    incomplete: 'past_due',
+    incomplete_expired: 'past_due',
+    canceled: 'canceled',
+    paused: 'past_due',
+    anything_else: 'past_due',
+  };
+
+  it.each(Object.entries(cases))('maps %s → %s', (stripeStatus, expected) => {
+    expect(deriveMemberStatusFromSubscription(stripeStatus)).toBe(expected);
+  });
+});
+
+describe('CHECKOUT_CUSTOM_FIELD_KEYS', () => {
+  it('uses snake_case keys Stripe accepts (max 25 chars, [a-z0-9_])', () => {
+    for (const key of Object.values(CHECKOUT_CUSTOM_FIELD_KEYS)) {
+      expect(key).toMatch(/^[a-z0-9_]{1,25}$/);
+    }
+  });
+});
+
+describe('SPECIES_OPTIONS', () => {
+  it('only includes dog + cat (v1 out-of-scope for exotics)', () => {
+    expect(SPECIES_OPTIONS.map((o) => o.value)).toEqual(['dog', 'cat']);
   });
 });
