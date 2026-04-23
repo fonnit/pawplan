@@ -87,7 +87,13 @@ Plans:
   3. Replaying the same webhook `event.id` five times via Stripe CLI produces exactly one Member row, exactly one status change per transition, and exactly one downstream side-effect enqueue (verified by the idempotency store).
   4. On `invoice.payment_failed`, the Member is flagged `past_due` and visible + filterable in the dashboard; no auto-email is sent to the pet owner (Smart Retries OFF per locked product decision).
   5. A clinic owner can click Cancel on a member row; Stripe `subscription.update({ cancel_at_period_end: true })` runs; the member continues to have access through `current_period_end` and then transitions to `canceled` via webhook.
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Member schema + MemberStatus enum + RLS + shared TS types (PAY-07, DASH-03 foundation)
+- [ ] 04-02-PLAN.md — createEnrollmentCheckoutSession + /api/enroll/[slug]/[tierId] + client redirect + /enroll/success page (PAY-01, PAY-02, PAY-03, BLDR-07)
+- [ ] 04-03-PLAN.md — Webhook dispatcher: checkout.session.completed + invoice.paid + invoice.payment_failed + customer.subscription.deleted handlers (PAY-04, PAY-05, PAY-06, PAY-07)
+- [ ] 04-04-PLAN.md — /dashboard/members list + past_due filter + cancelMember server action + cancelSubscriptionAtPeriodEnd helper (DASH-03, DASH-05)
 **UI hint**: yes
 
 ### Phase 5: Notifications + Welcome Packet
@@ -124,6 +130,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Foundation | 5/5 | Complete | 2026-04-23 |
 | 2. Stripe Connect Onboarding | 3/3 | Complete | 2026-04-23 |
 | 3. Publish + Public Enrollment Page | 0/TBD | Not started | - |
-| 4. Checkout + Subscription Lifecycle | 0/TBD | Not started | - |
+| 4. Checkout + Subscription Lifecycle | 0/4 | Planned | - |
 | 5. Notifications + Welcome Packet | 0/TBD | Not started | - |
 | 6. Dashboard Metrics + Redemption | 0/TBD | Not started | - |
