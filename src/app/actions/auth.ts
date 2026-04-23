@@ -9,19 +9,31 @@ import { headers } from 'next/headers';
 import { z } from 'zod';
 
 /**
- * signUpClinicOwner — atomic User + Clinic creation (FOUND-01).
+ * signUpClinicOwner — atomic User + Clinic creation (FOUND-01 / T-01-04-02).
  *
- * Flow:
+ * Better Auth and Prisma run on separate DB connections, so true cross-table
+ * transactional atomicity isn't available without plumbing Better Auth
+ * through a Prisma $transaction. Instead we implement a tight rollback that
+ * guarantees the invariant "if the request returns an error, no orphan User
+ * remains AND the browser has no valid session cookie":
+ *
  *   1. Zod-validate inputs.
  *   2. Normalize + validate slug (reserved-word + ASCII-lowercase guard, FOUND-05).
  *   3. Pre-check slug uniqueness (UX signal — @unique at DB is the final guard).
- *   4. auth.api.signUpEmail creates the User + session cookie.
- *   5. prisma.clinic.create links User -> Clinic with defaults.
- *   6. If (5) fails, roll back (4) via user.delete to avoid an orphan.
+ *   4. auth.api.signUpEmail creates the User + Account + Session + sets cookie.
+ *   5. prisma.clinic.create links User -> Clinic.
+ *   6. If (5) fails:
+ *        a. auth.api.signOut — clear the session row AND the Set-Cookie header,
+ *           so the browser doesn't walk away with a live cookie pointing at a
+ *           User we're about to delete (HI-03).
+ *        b. prisma.user.delete — cascades Session/Account rows.
+ *        c. If (6b) fails, log and re-throw so the client sees a generic 500
+ *           rather than a NEXT_REDIRECT into a broken /dashboard. No orphan
+ *           is silently retained.
  *
- * On success, server-side redirects to `/dashboard`. Next.js throws a
- * NEXT_REDIRECT sentinel so the client component never sees a return value;
- * the return-type shape exists only for the error path.
+ * On success, server-side redirects to `redirectTo` (safeNext-validated).
+ * Next.js throws a NEXT_REDIRECT sentinel so the client component never sees
+ * a return value; the return-type shape exists only for the error path.
  */
 
 const SignUpSchema = z.object({
@@ -100,9 +112,36 @@ export async function signUpClinicOwner(raw: {
         },
       });
     } catch (e) {
-      // Roll back the Better Auth user to avoid an orphan (T-01-04-02).
+      // HI-03: Clinic create failed. Before deleting the user, clear the
+      // session cookie so the browser doesn't retain a token pointing at a
+      // user we're about to remove. signOut clears both the server-side
+      // Session row (so any cookie replay is rejected) and issues a
+      // Set-Cookie header via nextCookies() that invalidates the cookie on
+      // the response. Swallow signOut errors — the user.delete cascade will
+      // still clean up the Session row, and re-throwing here would hide the
+      // original clinic-create error from the client.
+      try {
+        await auth.api.signOut({ headers: await headers() });
+      } catch {
+        // Best effort. user.delete below cascades Session rows anyway.
+      }
+
+      // HI-03: no `.catch(() => {})` — if the user.delete fails, we do NOT
+      // silently leave an orphan. Log and re-throw. The outer catch surfaces
+      // a generic error to the client.
       if (userId) {
-        await prisma.user.delete({ where: { id: userId } }).catch(() => {});
+        try {
+          await prisma.user.delete({ where: { id: userId } });
+        } catch (rollbackErr) {
+          console.error('signUpClinicOwner: rollback user.delete failed', {
+            userId,
+            clinicErr: (e as Error).message,
+            rollbackErr: (rollbackErr as Error).message,
+          });
+          // Re-throw the rollback error so the outer catch runs its generic
+          // mapping. The client does NOT get a NEXT_REDIRECT into /dashboard.
+          throw rollbackErr;
+        }
       }
       if ((e as { code?: string }).code === 'P2002') {
         return { ok: false, field: 'slug', message: 'That URL is taken. Try another.' };
