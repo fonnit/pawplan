@@ -7,21 +7,26 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { signUpClinicOwner, type SignUpFieldError } from '@/app/actions/auth';
 import { normalizeSlug } from '@/lib/slug';
+import { useSearchParams } from 'next/navigation';
 
 type FieldErrors = Partial<Record<SignUpFieldError, string>>;
 
 export function SignupForm() {
+  const params = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [slugValue, setSlugValue] = useState('');
 
   async function onSubmit(formData: FormData) {
     setErrors({});
+    // `next` is validated server-side by safeNext() inside signUpClinicOwner.
+    const nextParam = params.get('next');
     const payload = {
       email: String(formData.get('email') ?? '').trim(),
       password: String(formData.get('password') ?? ''),
       practiceName: String(formData.get('practiceName') ?? '').trim(),
       slug: String(formData.get('slug') ?? '').trim(),
+      ...(nextParam ? { next: nextParam } : {}),
     };
     startTransition(async () => {
       try {

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { SignupForm } from '@/components/auth/signup-form';
 
 export default function SignupPage() {
@@ -12,7 +13,9 @@ export default function SignupPage() {
         </Link>
       </p>
       <div className="mt-8">
-        <SignupForm />
+        <Suspense fallback={null}>
+          <SignupForm />
+        </Suspense>
       </div>
     </div>
   );

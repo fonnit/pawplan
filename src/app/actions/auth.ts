@@ -2,6 +2,7 @@
 
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { safeNext } from '@/lib/safe-next';
 import { normalizeSlug, validateSlug } from '@/lib/slug';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
@@ -28,6 +29,7 @@ const SignUpSchema = z.object({
   password: z.string().min(8).max(128),
   practiceName: z.string().min(2).max(100),
   slug: z.string().min(3).max(40),
+  next: z.string().optional(),
 });
 
 export type SignUpFieldError = 'email' | 'password' | 'practiceName' | 'slug';
@@ -40,6 +42,7 @@ export async function signUpClinicOwner(raw: {
   password: string;
   practiceName: string;
   slug: string;
+  next?: string;
 }): Promise<SignUpResult> {
   const parsed = SignUpSchema.safeParse(raw);
   if (!parsed.success) {
@@ -48,7 +51,9 @@ export async function signUpClinicOwner(raw: {
     return { ok: false, field, message: issue?.message ?? 'Invalid input.' };
   }
 
-  const { email, password, practiceName, slug: rawSlug } = parsed.data;
+  const { email, password, practiceName, slug: rawSlug, next: rawNext } = parsed.data;
+  // CR-01: same-origin guard applies server-side too — client could bypass.
+  const redirectTo = safeNext(rawNext ?? null);
   const slug = normalizeSlug(rawSlug);
   const slugCheck = validateSlug(slug);
   if (!slugCheck.ok) {
@@ -120,5 +125,7 @@ export async function signUpClinicOwner(raw: {
     throw e;
   }
 
-  redirect('/dashboard');
+  // `redirectTo` is runtime-validated by safeNext(); cast satisfies Next.js
+  // typed routes (which want a string-literal URL).
+  redirect(redirectTo as Parameters<typeof redirect>[0]);
 }
