@@ -66,6 +66,11 @@ export function PlanBuilder({
         } else {
           setSaveState({ kind: 'error', message: res.error });
         }
+      } catch (err) {
+        // Thrown (not returned) errors — RLS reject, missing clinic,
+        // network blip — otherwise leave the button stuck on "saving".
+        const message = err instanceof Error ? err.message : 'Save failed';
+        setSaveState({ kind: 'error', message });
       } finally {
         savingRef.current = false;
       }
@@ -168,7 +173,7 @@ export function PlanBuilder({
             {saveState.kind === 'saved'
               ? `Autosaves every 30s · Last saved ${formatRelative(saveState.at)}`
               : saveState.kind === 'error'
-                ? `Couldn't save. Check your connection.`
+                ? `Couldn't save: ${saveState.message}`
                 : 'Autosaves every 30s'}
           </p>
         </div>
