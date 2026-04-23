@@ -90,6 +90,19 @@ enum PlanStatus {
   archived
 }
 
+// Phase 2 — Stripe Connect onboarding lifecycle.
+// The five states are derived centrally via deriveOnboardingState() in
+// src/lib/stripe/types.ts. Do NOT hand-compute them elsewhere — the derivation
+// is the single source of truth so dashboard UI + webhook persistence stay in
+// sync.
+enum OnboardingState {
+  not_started // no stripeAccountId yet
+  in_progress // account created, owner in Stripe-hosted flow
+  action_required // returned from Stripe but requirements.currently_due not empty
+  complete // charges_enabled && payouts_enabled && !disabled_reason
+  restricted // disabled_reason is set (capability revoked by Stripe)
+}
+
 model Clinic {
   id           String      @id @default(uuid()) @db.Uuid
   ownerUserId  String      @unique
@@ -101,6 +114,20 @@ model Clinic {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   plans        Plan[]
+
+  // ─── Stripe Connect (Phase 2 PUB-01/PUB-02) ──────────────────────────────
+  // These fields are written ONLY by the webhook handler (Plan 02-03) and by
+  // the onboarding server action when persisting the baseline snapshot after
+  // account creation. UI routes must never mutate them — they mirror
+  // authoritative state owned by Stripe.
+  stripeAccountId        String?         @unique // acct_… from stripe.accounts.create
+  stripeChargesEnabled   Boolean         @default(false) // mirrored from account.updated
+  stripePayoutsEnabled   Boolean         @default(false) // mirrored from account.updated
+  stripeDetailsSubmitted Boolean         @default(false) // mirrored from account.updated
+  stripeDisabledReason   String? // requirements.disabled_reason
+  stripeRequirements     Json? // full requirements object snapshot
+  stripeOnboardingState  OnboardingState @default(not_started)
+  stripeCapabilitiesAt   DateTime? // last time we updated from a webhook
 
   @@index([slug])
 }
@@ -141,4 +168,26 @@ model PlanTier {
 
   @@index([planId, ordering])
   @@index([clinicId])
+}
+
+// ─── Stripe webhook idempotency store (Phase 2 PUB-02) ─────────────────────
+// Written by the webhook handler BEFORE any clinic context is resolved, so
+// the PK is `event.id` (Stripe's globally-unique event ID). NOT tenant-scoped
+// via a clinicId FK — a connectedAccount event may arrive before the Clinic
+// is fully linked, and the event log must survive clinic deletions for audit.
+// RLS is enabled in prisma/sql/002-stripe-rls.sql with the same two-mode
+// pattern as Clinic (permissive when GUC unset, strict when set).
+model StripeEvent {
+  id                 String    @id // Stripe event.id, e.g. evt_1AbCdEf…
+  type               String // e.g. account.updated
+  connectedAccountId String? // event.account — null for platform events
+  apiVersion         String? // event.api_version
+  payload            Json // full event object for forensic replay
+  receivedAt         DateTime  @default(now())
+  processedAt        DateTime? // null = in-flight or failed
+  processingError    String? // last error message if processing failed
+
+  @@index([connectedAccountId])
+  @@index([type, receivedAt])
+  @@index([processedAt])
 }
