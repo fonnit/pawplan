@@ -114,6 +114,7 @@ model Clinic {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   plans        Plan[]
+  members      Member[]
 
   // ─── Stripe Connect (Phase 2 PUB-01/PUB-02) ──────────────────────────────
   // These fields are written ONLY by the webhook handler (Plan 02-03) and by
@@ -181,6 +182,8 @@ model PlanTier {
   stripePriceHistory Json?
   publishedAt        DateTime?
 
+  members Member[]
+
   @@index([planId, ordering])
   @@index([clinicId])
   @@index([stripePriceId])
@@ -207,4 +210,61 @@ model StripeEvent {
   @@index([connectedAccountId])
   @@index([type, receivedAt])
   @@index([processedAt])
+}
+
+// ─── Phase 4 — Subscription member state (PAY-01..07, DASH-03, DASH-05) ─────
+//
+// A Member row is created from `checkout.session.completed` (see plan 04-03).
+// Written ONLY by the webhook dispatcher and the cancelMember server action.
+// UI + dashboard loaders must read via withClinic() so RLS enforces isolation.
+//
+// Invariants:
+//   - `status` is the ENUM MemberStatus — NEVER a boolean (PAY-07).
+//   - (clinicId, stripeSubscriptionId) is unique → webhook replay never
+//     creates a duplicate member even if dispatch raced (PITFALLS.md #2).
+//   - `canceledAt` is set optimistically when the owner clicks Cancel, and
+//     confirmed by the customer.subscription.deleted webhook. `status` only
+//     flips to `canceled` on the webhook; never on the UI click.
+//   - `currentPeriodEnd` mirrors Stripe's current_period_end so the dashboard
+//     can render cancellation countdown without a Stripe round-trip.
+//
+// Smart Retries are OFF per locked decision — payment_failed_at records the
+// single failure that flipped the member to past_due. No retry schedule.
+enum MemberStatus {
+  active
+  past_due
+  canceled
+}
+
+model Member {
+  id         String   @id @default(uuid()) @db.Uuid
+  clinicId   String   @db.Uuid
+  clinic     Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  planTierId String   @db.Uuid
+  planTier   PlanTier @relation(fields: [planTierId], references: [id], onDelete: Restrict)
+
+  // Stripe linkage — mirrored from webhook events, never authored by UI.
+  stripeCustomerId     String // cus_…
+  stripeSubscriptionId String @unique // sub_… — unique across platform
+
+  // Custom fields collected inside Stripe Checkout (BLDR-07).
+  petName    String
+  species    String // "dog" | "cat" (Checkout custom-field dropdown)
+  ownerEmail String // seeded from Checkout customer_email
+
+  // Lifecycle.
+  status           MemberStatus @default(active)
+  currentPeriodEnd DateTime? // mirrored from subscription.current_period_end
+  enrolledAt       DateTime     @default(now()) // first invoice.paid timestamp
+  paymentFailedAt  DateTime? // set by invoice.payment_failed (PAY-05, DASH-03)
+  canceledAt       DateTime? // set optimistically by owner click + confirmed by webhook (DASH-05)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Indexes optimized for the dashboard members page + webhook upsert.
+  @@unique([clinicId, stripeSubscriptionId]) // webhook replay safety
+  @@index([clinicId, status]) // filter past_due / active
+  @@index([clinicId, paymentFailedAt]) // DASH-03 filterable failed flag
+  @@index([planTierId])
 }
