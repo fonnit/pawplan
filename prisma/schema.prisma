@@ -146,6 +146,7 @@ model Plan {
   tiers                     PlanTier[]
 
   @@index([clinicId, status])
+  @@index([clinicId, status, publishedAt])
 }
 
 model PlanTier {
@@ -166,8 +167,24 @@ model PlanTier {
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt
 
+  // ─── Phase 3 Publish (PUB-03, BLDR-08) ───────────────────────────────────
+  // Nullable to preserve existing draft rows. Written ONLY by the publishPlan
+  // server action (plan 03-02) and updatePlanPrices (plan 03-04). Never
+  // written by UI code directly. Invariants:
+  //   - stripeProductId is set at first publish and never rotates (BLDR-08).
+  //   - stripePriceId is the ACTIVE price; rotates on price edit.
+  //   - stripePriceHistory is append-only: [{ priceId, unitAmountCents, createdAt, replacedAt }].
+  //     The current price also has a row with replacedAt = null.
+  //   - publishedAt is the first-publish timestamp; subsequent edits do not reset it.
+  stripeProductId    String?
+  stripePriceId      String?
+  stripePriceHistory Json?
+  publishedAt        DateTime?
+
   @@index([planId, ordering])
   @@index([clinicId])
+  @@index([stripePriceId])
+  @@index([planId, publishedAt])
 }
 
 // ─── Stripe webhook idempotency store (Phase 2 PUB-02) ─────────────────────
