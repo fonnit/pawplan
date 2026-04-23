@@ -14,8 +14,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** — Auth, tenancy with Postgres RLS, clinic profile, slug safety, break-even pure function with unit tests, and the 8-question builder with live client-side preview and draft persistence.
 - [x] **Phase 2: Stripe Connect Onboarding** — Create Express accounts, verify capability gating via `account.updated`, and surface onboarding status in the dashboard.
-- [ ] **Phase 3: Publish + Public Enrollment Page** — Server-side canonical break-even, Stripe Product/Price creation, unique `pawplan.app/{slug}/enroll` URL with ISR, and post-publish pricing edits that preserve existing subscriptions.
-- [ ] **Phase 4: Checkout + Subscription Lifecycle** — Stripe Checkout with destination charges, idempotent webhook handlers, member state machine (`active | past_due | canceled`), failed-charge flagging, and owner-initiated cancellation.
+- [x] **Phase 3: Publish + Public Enrollment Page** — Server-side canonical break-even, Stripe Product/Price creation, unique `pawplan.app/{slug}/enroll` URL with ISR, and post-publish pricing edits that preserve existing subscriptions.
+- [x] **Phase 4: Checkout + Subscription Lifecycle** — Stripe Checkout with destination charges, idempotent webhook handlers, member state machine (`active | past_due | canceled`), failed-charge flagging, and owner-initiated cancellation.
 - [ ] **Phase 5: Notifications + Welcome Packet** — Async pg-boss queue, React-PDF welcome packet, Resend email delivery for pet-owner welcome and owner new-enrollment notifications.
 - [ ] **Phase 6: Dashboard Metrics + Redemption** — MRR/ARR/forecast queries sourced from Stripe, per-member rows, manual service-redemption toggles idempotent on the current billing period, and time-zone-correct display.
 
@@ -90,10 +90,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Member schema + MemberStatus enum + RLS + shared TS types (PAY-07, DASH-03 foundation)
-- [ ] 04-02-PLAN.md — createEnrollmentCheckoutSession + /api/enroll/[slug]/[tierId] + client redirect + /enroll/success page (PAY-01, PAY-02, PAY-03, BLDR-07)
-- [ ] 04-03-PLAN.md — Webhook dispatcher: checkout.session.completed + invoice.paid + invoice.payment_failed + customer.subscription.deleted handlers (PAY-04, PAY-05, PAY-06, PAY-07)
-- [ ] 04-04-PLAN.md — /dashboard/members list + past_due filter + cancelMember server action + cancelSubscriptionAtPeriodEnd helper (DASH-03, DASH-05)
+- [x] 04-01-PLAN.md — Member schema + MemberStatus enum + RLS + shared TS types (PAY-07, DASH-03 foundation)
+- [x] 04-02-PLAN.md — createEnrollmentCheckoutSession + /api/enroll/[slug]/[tierId] + client redirect + /enroll/success page (PAY-01, PAY-02, PAY-03, BLDR-07)
+- [x] 04-03-PLAN.md — Webhook dispatcher: checkout.session.completed + invoice.paid + invoice.payment_failed + customer.subscription.deleted handlers (PAY-04, PAY-05, PAY-06, PAY-07)
+- [x] 04-04-PLAN.md — /dashboard/members list + past_due filter + cancelMember server action + cancelSubscriptionAtPeriodEnd helper (DASH-03, DASH-05)
 **UI hint**: yes
 
 ### Phase 5: Notifications + Welcome Packet

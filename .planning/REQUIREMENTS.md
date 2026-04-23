@@ -37,7 +37,7 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 - [ ] **BLDR-04**: Owner can return to the builder post-publish to edit prices (BLDR-08) without losing member data
 - [ ] **BLDR-05**: Draft plans persist to Postgres — never ephemeral
 - [x] **BLDR-06**: Owner edits tier names post-draft before publishing
-- [ ] **BLDR-07**: Basic member record fields captured at enrollment: pet name, species, owner email, plan start date _(deferred to Phase 4 — Stripe Checkout custom fields)_
+- [x] **BLDR-07**: Basic member record fields captured at enrollment: pet name, species, owner email, plan start date — collected inside Stripe Checkout `custom_fields` (pet_name text, species dropdown dog/cat)
 - [x] **BLDR-08**: Post-publish pricing edits use Stripe's new-Price-on-existing-Product pattern — existing subscriptions unaffected
 
 ### Stripe Connect + Publish (`PUB`)
@@ -51,13 +51,13 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 
 ### Checkout + Billing (`PAY`)
 
-- [ ] **PAY-01**: Stripe Checkout (hosted page, subscription mode) collects pet name + species + owner email + card
-- [ ] **PAY-02**: Destination charges pattern: `transfer_data.destination = clinic.stripe_account_id`, `application_fee_percent = 10`
-- [ ] **PAY-03**: Monthly recurring billing via Stripe Subscriptions
-- [ ] **PAY-04**: Connect webhook handler is idempotent (stripe_events PK on event.id; returns 200 <200ms; fans out heavy work to a queue)
-- [ ] **PAY-05**: `invoice.payment_failed` webhook flags the member record with status `past_due`; **no auto-email to pet owner in v1**
-- [ ] **PAY-06**: `invoice.paid`, `customer.subscription.created`, `customer.subscription.deleted` update member state atomically
-- [ ] **PAY-07**: Member status is an enum — `active`, `past_due`, `canceled` — never a boolean
+- [x] **PAY-01**: Stripe Checkout (hosted page, subscription mode) collects pet name + species + owner email + card
+- [x] **PAY-02**: Destination charges pattern: `transfer_data.destination = clinic.stripe_account_id`, `application_fee_percent = 10`
+- [x] **PAY-03**: Monthly recurring billing via Stripe Subscriptions
+- [x] **PAY-04**: Connect webhook handler is idempotent (stripe_events PK on event.id; returns 200 <200ms; fans out heavy work to a queue — queue deferred to Phase 5)
+- [x] **PAY-05**: `invoice.payment_failed` webhook flags the member record with status `past_due`; **no auto-email to pet owner in v1** (grep-guarded in source)
+- [x] **PAY-06**: `invoice.paid`, `customer.subscription.deleted` update member state atomically (customer.subscription.created deliberately NOT wired — Stripe emits it before checkout.session.completed and its payload lacks custom_fields; checkout.session.completed is the sole Member-creation event per 04-03)
+- [x] **PAY-07**: Member status is an enum — `active`, `past_due`, `canceled` — never a boolean
 
 ### Notifications + Welcome Packet (`NOTIF`)
 
@@ -70,9 +70,9 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 
 - [ ] **DASH-01**: Active member count, plan-tier breakdown, MRR (gross — fees — net), 30-day renewal forecast, projected ARR
 - [ ] **DASH-02**: Per-member row: pet name, species, plan, enrollment date, next billing date, status badge, services remaining this cycle
-- [ ] **DASH-03**: Failed-charge flag on the member record is visible and filterable
+- [x] **DASH-03**: Failed-charge flag on the member record is visible and filterable (/dashboard/members past_due filter + past_due-first sort)
 - [ ] **DASH-04**: Staff can toggle a checkbox per included service per billing period per member; idempotent on `(member_id, service_key, billing_period_start)`
-- [ ] **DASH-05**: Owner can cancel a member subscription; prorates to end of billing period; confirmation email to pet owner
+- [x] **DASH-05**: Owner can cancel a member subscription; prorates to end of billing period via `cancel_at_period_end: true`; status flip confirmed by webhook at period end. Confirmation-email to pet owner is Phase 5 NOTIF scope.
 - [ ] **DASH-06**: Dashboard renders in clinic's time zone for display; all storage in UTC; `current_period_end` from Stripe is the truth
 
 ## v2 (Deferred)
@@ -125,7 +125,7 @@ Every v1 requirement maps to exactly one phase in ROADMAP.md. Coverage: **42/42*
 | BLDR-04 | Phase 1 | Pending |
 | BLDR-05 | Phase 1 | Pending |
 | BLDR-06 | Phase 3 | Complete |
-| BLDR-07 | Phase 3 | Deferred → Phase 4 |
+| BLDR-07 | Phase 4 | Complete (collected inside Stripe Checkout custom_fields — pet_name + species dropdown) |
 | BLDR-08 | Phase 3 | Complete |
 | PUB-01 | Phase 2 | Complete |
 | PUB-02 | Phase 2 | Complete |
@@ -133,22 +133,22 @@ Every v1 requirement maps to exactly one phase in ROADMAP.md. Coverage: **42/42*
 | PUB-04 | Phase 3 | Complete |
 | PUB-05 | Phase 3 | Complete |
 | PUB-06 | Phase 3 | Complete (k6 script committed; full load-run operator-driven pre-demo) |
-| PAY-01 | Phase 4 | Pending |
-| PAY-02 | Phase 4 | Pending |
-| PAY-03 | Phase 4 | Pending |
-| PAY-04 | Phase 4 | Pending |
-| PAY-05 | Phase 4 | Pending |
-| PAY-06 | Phase 4 | Pending |
-| PAY-07 | Phase 4 | Pending |
+| PAY-01 | Phase 4 | Complete |
+| PAY-02 | Phase 4 | Complete |
+| PAY-03 | Phase 4 | Complete |
+| PAY-04 | Phase 4 | Complete |
+| PAY-05 | Phase 4 | Complete (grep-guarded in invoice-payment-failed.ts) |
+| PAY-06 | Phase 4 | Complete |
+| PAY-07 | Phase 4 | Complete (Postgres enum + TS union; zero boolean member flags) |
 | NOTIF-01 | Phase 5 | Pending |
 | NOTIF-02 | Phase 5 | Pending |
 | NOTIF-03 | Phase 5 | Pending |
 | NOTIF-04 | Phase 5 | Pending |
 | DASH-01 | Phase 6 | Pending |
 | DASH-02 | Phase 6 | Pending |
-| DASH-03 | Phase 4 | Pending |
+| DASH-03 | Phase 4 | Complete (dashboard past_due filter + attention-red badge color family) |
 | DASH-04 | Phase 6 | Pending |
-| DASH-05 | Phase 4 | Pending |
+| DASH-05 | Phase 4 | Complete (cancelMember server action + cancelSubscriptionAtPeriodEnd helper; optimistic UX) |
 | DASH-06 | Phase 6 | Pending |
 
 ### Per-Phase Summary
