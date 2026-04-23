@@ -9,7 +9,11 @@ import { NextResponse, type NextRequest } from 'next/server';
  * separator "."). If that changes in a future release, update the lookup below.
  */
 export function middleware(req: NextRequest) {
-  const token = req.cookies.get('better-auth.session_token');
+  // Better Auth prefixes the cookie with `__Secure-` on HTTPS (production).
+  // Check both names so dev (HTTP) and prod (HTTPS) both work.
+  const token =
+    req.cookies.get('better-auth.session_token') ??
+    req.cookies.get('__Secure-better-auth.session_token');
   if (!token) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
