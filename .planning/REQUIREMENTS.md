@@ -23,7 +23,7 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 
 ### Break-Even Engine (`MATH`)
 
-- [ ] **MATH-01**: Pure function computes per-tier break-even math given 8 builder inputs + 10% platform fee
+- [x] **MATH-01**: Pure function computes per-tier break-even math given 8 builder inputs + 10% platform fee
 - [ ] **MATH-02**: Math runs client-side for live recompute during builder edits
 - [ ] **MATH-03**: Math runs server-side at Publish for canonical pricing (same file as MATH-02)
 - [ ] **MATH-04**: Line-by-line display: retail value bundled, monthly fee, clinic gross per enrolled pet per year, break-even member count
@@ -114,7 +114,7 @@ Every v1 requirement maps to exactly one phase in ROADMAP.md. Coverage: **42/42*
 | FOUND-04 | Phase 1 | Pending |
 | FOUND-05 | Phase 1 | Pending |
 | FOUND-06 | Phase 1 | Pending |
-| MATH-01 | Phase 1 | Pending |
+| MATH-01 | Phase 1 | Complete |
 | MATH-02 | Phase 3 | Pending |
 | MATH-03 | Phase 3 | Pending |
 | MATH-04 | Phase 3 | Pending |

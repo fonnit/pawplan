@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md — Next.js 16 + Tailwind v4 + shadcn/ui scaffold with Prisma Neon adapter + Vitest
-- [ ] 01-02-PLAN.md — Break-even pure function `computeBreakEven` + 15-scenario Vitest suite (MATH-01, TDD)
+- [x] 01-02-PLAN.md — Break-even pure function `computeBreakEven` + 15-scenario Vitest suite (MATH-01, TDD)
 - [ ] 01-03-PLAN.md — Prisma schema + Postgres RLS policies + `withClinic` helper + slug safety (FOUND-04, FOUND-05, FOUND-06)
 - [ ] 01-04-PLAN.md — Better Auth email/password + signup/login/logout UI + dashboard shell (FOUND-01, FOUND-02, FOUND-03)
 - [ ] 01-05-PLAN.md — 8-question plan builder with live break-even preview + draft persist + resume (BLDR-01..05)
