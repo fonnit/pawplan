@@ -68,12 +68,12 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 
 ### Dashboard + Redemption (`DASH`)
 
-- [ ] **DASH-01**: Active member count, plan-tier breakdown, MRR (gross — fees — net), 30-day renewal forecast, projected ARR
-- [ ] **DASH-02**: Per-member row: pet name, species, plan, enrollment date, next billing date, status badge, services remaining this cycle
+- [x] **DASH-01**: Active member count, plan-tier breakdown, MRR (gross — fees — net), 30-day renewal forecast, projected ARR
+- [x] **DASH-02**: Per-member row: pet name, species, plan, enrollment date, next billing date, status badge, services remaining this cycle
 - [x] **DASH-03**: Failed-charge flag on the member record is visible and filterable (/dashboard/members past_due filter + past_due-first sort)
-- [ ] **DASH-04**: Staff can toggle a checkbox per included service per billing period per member; idempotent on `(member_id, service_key, billing_period_start)`
+- [x] **DASH-04**: Staff can toggle a checkbox per included service per billing period per member; idempotent on `(member_id, service_key, billing_period_start)`
 - [x] **DASH-05**: Owner can cancel a member subscription; prorates to end of billing period via `cancel_at_period_end: true`; status flip confirmed by webhook at period end. Confirmation-email to pet owner is Phase 5 NOTIF scope.
-- [ ] **DASH-06**: Dashboard renders in clinic's time zone for display; all storage in UTC; `current_period_end` from Stripe is the truth
+- [x] **DASH-06**: Dashboard renders in clinic's time zone for display; all storage in UTC; `current_period_end` from Stripe is the truth
 
 ## v2 (Deferred)
 
@@ -144,12 +144,12 @@ Every v1 requirement maps to exactly one phase in ROADMAP.md. Coverage: **42/42*
 | NOTIF-02 | Phase 5 | Complete |
 | NOTIF-03 | Phase 5 | Complete |
 | NOTIF-04 | Phase 5 | Complete |
-| DASH-01 | Phase 6 | Pending |
-| DASH-02 | Phase 6 | Pending |
+| DASH-01 | Phase 6 | Complete (MRR gross/fees/platform/net + ARR + 30d forecast + tier breakdown cards on /dashboard) |
+| DASH-02 | Phase 6 | Complete (expandable members table with services-remaining X/Y + full date column set rendered via formatInClinicTz) |
 | DASH-03 | Phase 4 | Complete (dashboard past_due filter + attention-red badge color family) |
-| DASH-04 | Phase 6 | Pending |
+| DASH-04 | Phase 6 | Complete (ServiceRedemption DB-unique index on (memberId, serviceKey, billingPeriodStart) + optimistic-lock scaffolding; 5-way concurrent insert test proves exactly-one-row) |
 | DASH-05 | Phase 4 | Complete (cancelMember server action + cancelSubscriptionAtPeriodEnd helper; optimistic UX) |
-| DASH-06 | Phase 6 | Pending |
+| DASH-06 | Phase 6 | Complete (Intl.DateTimeFormat + IANA zones via Clinic.timezone; storage stays UTC; invalid-zone falls back to UTC) |
 
 ### Per-Phase Summary
 

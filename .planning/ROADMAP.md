@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Publish + Public Enrollment Page** — Server-side canonical break-even, Stripe Product/Price creation, unique `pawplan.app/{slug}/enroll` URL with ISR, and post-publish pricing edits that preserve existing subscriptions.
 - [x] **Phase 4: Checkout + Subscription Lifecycle** — Stripe Checkout with destination charges, idempotent webhook handlers, member state machine (`active | past_due | canceled`), failed-charge flagging, and owner-initiated cancellation.
 - [x] **Phase 5: Notifications + Welcome Packet** — Async pg-boss queue, React-PDF welcome packet, SendGrid email delivery (sandbox-forced) for pet-owner welcome and owner new-enrollment notifications. (2026-04-23)
-- [ ] **Phase 6: Dashboard Metrics + Redemption** — MRR/ARR/forecast queries sourced from Stripe, per-member rows, manual service-redemption toggles idempotent on the current billing period, and time-zone-correct display.
+- [x] **Phase 6: Dashboard Metrics + Redemption** — MRR (gross/Stripe-fees/platform-fee/net) + ARR + 30-day renewal forecast + tier breakdown on the dashboard, expandable members rows with services-remaining counter, ServiceRedemption with DB-unique idempotency + optimistic-lock scaffolding, Intl.DateTimeFormat + IANA zones throughout. (2026-04-23)
 
 ## Phase Details
 
@@ -115,17 +115,24 @@ Plans:
 - **PDF: `@react-pdf/renderer` 4.5+** — pure JS, `renderToBuffer`, Node-runtime only.
 - **Enqueue site: `checkout.session.completed`** handler AFTER Member upsert (not `invoice.paid`) — that's when Member first exists. Member.welcomePacketSentAt / ownerNotifiedAt gates avoid double-enqueue on replay.
 
-### Phase 6: Dashboard Metrics + Redemption
+### Phase 6: Dashboard Metrics + Redemption — **COMPLETE** (2026-04-23)
 **Goal**: A clinic owner can open the dashboard and see active members, plan-tier breakdown, MRR (gross / − Stripe fees / − platform fee / = net), 30-day renewal forecast sourced from Stripe's `current_period_end`, projected ARR, per-member rows with services-remaining counters, and manual service-redemption toggles that reset implicitly each billing period.
 **Depends on**: Phase 5
-**Requirements**: DASH-01, DASH-02, DASH-04, DASH-06
+**Requirements**: DASH-01, DASH-02, DASH-04, DASH-06 — all complete
 **Success Criteria** (what must be TRUE):
-  1. A clinic owner sees active member count, plan-tier breakdown, MRR with gross / Stripe fees / platform fee / net shown as separate lines, 30-day renewal forecast, and projected ARR on the dashboard home.
-  2. Each member row displays pet name, species, plan, enrollment date, next billing date in the clinic's time zone, status badge (`active | past_due | canceled`), and services remaining this cycle.
-  3. Staff can toggle a checkbox per included service per billing period per member; the upsert is idempotent on `(member_id, service_key, billing_period_start)` with optimistic locking, so two simultaneous toggles result in exactly one state change and one visible conflict.
-  4. The 30-day renewal forecast query reads `current_period_end` directly from Stripe (not `enrollment_date + 30 days`), and Jan 31 / Feb 28 / DST edge cases display correct renewal dates without any "April 31"-style invalid dates.
-**Plans**: TBD
+  1. A clinic owner sees active member count, plan-tier breakdown, MRR with gross / Stripe fees / platform fee / net shown as separate lines, 30-day renewal forecast, and projected ARR on the dashboard home. ✓
+  2. Each member row displays pet name, species, plan, enrollment date, next billing date in the clinic's time zone, status badge (`active | past_due | canceled`), and services remaining this cycle. ✓
+  3. Staff can toggle a checkbox per included service per billing period per member; the upsert is idempotent on `(member_id, service_key, billing_period_start)` with optimistic locking, so two simultaneous toggles result in exactly one state change and one visible conflict. ✓ (integration test spawns 5 concurrent inserts; exactly one row lands)
+  4. The 30-day renewal forecast query reads `current_period_end` directly from Stripe (not `enrollment_date + 30 days`), and Jan 31 / Feb 28 / DST edge cases display correct renewal dates without any "April 31"-style invalid dates. ✓ (Intl.DateTimeFormat uses Node 22 full ICU; `billingPeriodStart` derived from Stripe's anchor, never wall clock)
+**Plans**: 06-01 (wave 1 — schema + RLS, wave 2 — libraries, wave 3 — wiring). Executed as a single inline plan.
 **UI hint**: yes
+
+**Phase 6 Locked Decisions:**
+- **Existence-as-state redemption model** — row present ≡ redeemed. Toggle-on = INSERT; toggle-off = DELETE. No boolean column.
+- **DB unique index is the idempotency anchor** — `(memberId, serviceKey, billingPeriodStart)`. App layer catches Prisma P2002 on race and translates to `status=already_redeemed`.
+- **billingPeriodStart = currentPeriodEnd − 1 month, NEVER wall clock** — null `currentPeriodEnd` short-circuits with `status=no_billing_period` instead of writing against a null anchor.
+- **Clinic.timezone defaults to America/New_York** — storage stays UTC. No settings-page UI yet (deferred; see Phase 6 `deferred-items.md`).
+- **MRR excludes past_due + canceled** — past-due members aren't paying this month (Smart Retries OFF); canceled members are gone. 30-day forecast additionally excludes cancel-at-period-end members.
 
 ## Progress
 
@@ -139,4 +146,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. Publish + Public Enrollment Page | 4/4 | Complete | 2026-04-23 |
 | 4. Checkout + Subscription Lifecycle | 4/4 | Complete | 2026-04-23 |
 | 5. Notifications + Welcome Packet | 1/1 | Complete | 2026-04-23 |
-| 6. Dashboard Metrics + Redemption | 0/TBD | Not started | - |
+| 6. Dashboard Metrics + Redemption | 1/1 | Complete | 2026-04-23 |

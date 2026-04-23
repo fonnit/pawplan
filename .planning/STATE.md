@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: phase-5-complete
-stopped_at: Completed Phase 5 (Notifications + Welcome Packet) — pg-boss queue + SendGrid (sandbox) + React-PDF wired through checkout webhook
-last_updated: "2026-04-23T14:36:00.000Z"
+status: phase-6-complete
+stopped_at: Completed Phase 6 (Dashboard Metrics + Redemption) — MRR/ARR/renewal-forecast cards, ServiceRedemption with DB-unique idempotency, clinic-tz render. PawPlan v1 feature set COMPLETE.
+last_updated: "2026-04-23T17:00:00.000Z"
 last_activity: 2026-04-23
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 17
-  completed_plans: 17
+  completed_phases: 6
+  total_plans: 18
+  completed_plans: 18
   percent: 100
 ---
 
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** A clinic owner publishes pricing and lands their first paying member in the same session.
-**Current focus:** Phase 5 — Notifications + Welcome Packet (COMPLETE) → Phase 6 (Dashboard Metrics + Redemption)
+**Current focus:** Phase 6 — Dashboard Metrics + Redemption (COMPLETE) → v1 milestone (demo-ship gate)
 
 ## Current Position
 
-Phase: 5 of 6 (Notifications + Welcome Packet) — COMPLETE
-Plan: 1 of 1 in current phase (executed as a single inline plan — small phase)
-Status: Phase 5 shipped — pg-boss queue + SendGrid sandbox-forced wrapper + React-PDF welcome packet. Webhook hot path is email-free (grep-guarded). Ready for Phase 6 (Dashboard Metrics + Redemption).
+Phase: 6 of 6 (Dashboard Metrics + Redemption) — COMPLETE
+Plan: 1 of 1 in current phase (executed as a single inline plan — 3 commit waves)
+Status: Phase 6 shipped — MRR breakdown (gross/Stripe/platform/net) + projected ARR + 30-day renewal forecast + tier breakdown on dashboard home, ServiceRedemption table with DB-unique idempotency and optimistic-lock scaffolding, Intl.DateTimeFormat + IANA-zone clinic-tz render throughout. PawPlan v1 feature set is COMPLETE.
 Last activity: 2026-04-23
 
-Progress: [██████████] Phase 5 of 6
+Progress: [██████████] Phase 6 of 6 (100%)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 17 (Phase 1: 5, Phase 2: 3, Phase 3: 4, Phase 4: 4, Phase 5: 1)
-- Average duration: ~10m / plan (Phase 5 single-plan: ~11m end-to-end across 3 waves)
-- Total execution time: ~3.0 hours (across five phases)
+- Total plans completed: 18 (Phase 1: 5, Phase 2: 3, Phase 3: 4, Phase 4: 4, Phase 5: 1, Phase 6: 1)
+- Average duration: ~10m / plan (Phase 6: ~14m end-to-end across 3 commit waves)
+- Total execution time: ~3.25 hours (across six phases)
 
 **By Phase:**
 
@@ -49,11 +49,12 @@ Progress: [██████████] Phase 5 of 6
 | 03    | 4     | ~37m    | 9m       |
 | 04    | 4     | ~31m    | 8m       |
 | 05    | 1     | ~11m    | 11m (3 waves) |
+| 06    | 1     | ~14m    | 14m (3 waves) |
 
 **Recent Trend:**
 
-- Last 5 plans: 04-01, 04-02, 04-03, 04-04, 05-01.
-- Trend: Phase 5 folded into a single plan because of small scope (4 requirements, tight guardrails). 3-wave structure (infra → handlers → wiring) kept commits atomic and tests additive; zero deviations from the execution context brief.
+- Last 5 plans: 04-03, 04-04, 05-01, 06-01.
+- Trend: Phases 5 and 6 both folded into single plans because scope was bounded (4 requirements each). 3-wave pattern (schema → libraries → wiring) stays the stable template for small phases. Zero deviations across the last two phases; test coverage additive (Phase 6 added 29 new tests, 209 total across 28 files).
 
 *Updated after each plan completion*
 | Phase 01 P01 | 10m | 2 tasks | 27 files |
@@ -73,6 +74,7 @@ Progress: [██████████] Phase 5 of 6
 | Phase 04 P03 | 12m | 2 tasks | 12 files |
 | Phase 04 P04 | 8m  | 2 tasks | 7 files  |
 | Phase 05 P01 | 11m | 3 waves | 17 files (3 commits) |
+| Phase 06 P01 | 14m | 3 waves | 17 files (3 commits) |
 
 ## Accumulated Context
 
@@ -81,6 +83,12 @@ Progress: [██████████] Phase 5 of 6
 Decisions are logged in PROJECT.md Key Decisions table and REQUIREMENTS.md Locked Product Decisions.
 Recent decisions affecting current work:
 
+- **Redemption idempotency lives in the DB, not the app** (Phase 6, 2026-04-23) — `ServiceRedemption` has a unique index on `(memberId, serviceKey, billingPeriodStart)`. Two simultaneous toggle-on requests → Prisma P2002 on the loser, which `toggleRedemption` catches and re-fetches, returning `status=already_redeemed`. Integration test spawns 5 concurrent inserts and proves exactly one row lands.
+- **Existence-as-state redemption model** (Phase 6, 2026-04-23) — row present ≡ redeemed; toggle-off DELETEs. No boolean column. Keeps the data shape minimal and the uniqueness constraint unambiguous.
+- **billingPeriodStart is derived from Stripe's currentPeriodEnd − 1 calendar month, NEVER from wall clock** (Phase 6, 2026-04-23) — if `Member.currentPeriodEnd` is still null (new member in the gap between `checkout.session.completed` and first `invoice.paid`), the server action short-circuits with `status=no_billing_period` instead of writing against a null anchor.
+- **`ServiceRedemption.version` column reserved for v2 mutable attributes** (Phase 6, 2026-04-23) — today version stays 0 and only matters for toggle-off calls that pass `expectedVersion`. The scaffolding is tested so future mutable-attribute flows (notes, photo, vet sig) can start using it without another migration.
+- **Storage in UTC, render in clinic.timezone** (Phase 6, 2026-04-23) — `Clinic.timezone` defaults to `America/New_York`. `src/lib/time.ts` `formatInClinicTz` is the only sanctioned render path; it falls back to UTC on invalid zone ids so a bad value never renders as em-dash. No settings-page UI for the owner to change it yet (deferred; see Phase 6 `deferred-items.md`).
+- **MRR excludes past_due + canceled** (Phase 6, 2026-04-23) — past-due members aren't paying this month (Smart Retries OFF) and canceled members are gone. Past-due count surfaces separately as an attention-grab in the Active Members card. 30-day renewal forecast additionally excludes active members with non-null `canceledAt` (they'll flip to canceled at period end, not renew).
 - **Email provider switched from Resend to SendGrid** (Phase 5, 2026-04-23) — Daniel provided SendGrid key via Twilio. `@sendgrid/mail@8` wrapper at `src/lib/email/sendgrid.ts`. `resend` package stays in `package.json` but is grep-blocked from all hot-path and queue files.
 - **SendGrid sandbox mode forced ON for the public demo** (Phase 5, 2026-04-23) — `mailSettings.sandboxMode.enable` set on every send call. Any value other than the literal string `"false"` in `SENDGRID_SANDBOX_MODE` keeps sandbox ON. 5 dedicated tests in `src/lib/email/sendgrid.test.ts` verify fail-closed behavior.
 - **Queue: pg-boss@10 over Neon Postgres** (Phase 5, 2026-04-23) — no Redis. `createQueue` on `boss.start()` is idempotent. Lazy singleton in `src/lib/queue/boss.ts`. Drain path `/api/jobs/worker` compatible with Vercel Cron.
@@ -108,25 +116,22 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-**Phase 6 (Dashboard Metrics + Redemption) kickoff pre-reqs:**
-- DASH-01, DASH-02, DASH-04, DASH-06 — MRR / ARR / 30-day renewal forecast on the dashboard, per-member rows with services-remaining counter, manual redemption checkboxes idempotent on `(member_id, service_key, billing_period_start)`, clinic time-zone display.
-- New ServiceRedemption table + migration (one row per redemption toggle); optimistic-locking pattern for the toggle write.
-- Subscription metrics should read from Stripe where possible (current_period_end, price.unit_amount) rather than duplicating into Postgres.
+**v1 milestone — all six phases COMPLETE. Remaining work is demo-ship and polish, not features.**
 
-**Phase 5 carry-overs into Phase 6:**
-- **End-to-end sandbox smoke:** in staging (or a throwaway Stripe test clinic), fire a real checkout, verify SendGrid dashboard shows the sandbox-accepted event and the pg-boss worker completes both jobs. Not automated — operator task before demo.
-- **Vercel Cron wiring:** `/api/jobs/worker` exists as the drain endpoint. A `vercel.json` crons entry pointing at it every 60s is NOT yet committed (no deploy config present in repo). Add when Phase 6 deploy lands.
-- **CRON_SECRET env:** set in Vercel project when deploying; locally optional.
-- **pg-boss schema `pgboss`:** created automatically on first `boss.start()`. Operator should note this when running `prisma db pull` or inspecting migrations — it's outside Prisma's purview.
-- **Alternative long-lived worker:** `src/lib/jobs/register-workers.ts` exports `registerWorkers()` for a tsx-run worker process. Not wired into `pnpm` scripts; add when self-hosted deploy becomes the canonical path.
+**Demo-ship operator tasks (not code):**
+- **End-to-end sandbox smoke** (Phase 5 carry-over): in staging, fire a real Stripe test Checkout → verify SendGrid dashboard shows the sandbox-accepted event → verify pg-boss worker completes both jobs → confirm the new member appears on /dashboard/members with dates in clinic-tz and a full services-remaining X/Y count. Operator task before demo.
+- **Operator-run PUB-06 load test** (Phase 3 carry-over): `k6 run tests/load/enroll-page.k6.js` against a staged published clinic — script committed, not executed in CI.
+- **Vercel Cron wiring**: commit `vercel.json` with `/api/jobs/worker` every 60s when Phase 6 deploy lands. `CRON_SECRET` env set in Vercel project.
+- **pg-boss schema `pgboss`**: created automatically on first `boss.start()`. Operator should note this when running `prisma db pull`.
 
-**Cross-phase carry-overs:**
-- Production (Neon) deploy needs a non-owner app role equivalent to `pawplan_app` so RLS FORCE is honestly enforced under a non-BYPASSRLS connection (carry-over from Phase 2).
-- Operator-run PUB-06 load test (`k6 run tests/load/enroll-page.k6.js`) against a staged published clinic before demo — script committed, not executed in CI.
-- Phase 3 carry-over: `src/lib/tenant.test.ts` + `src/app/actions/publish.test.ts` use the superuser pool for fixtures because strict RLS blocks pawplan_app INSERTs into Plan/PlanTier. Consider a `withSuperuser()` helper or a dedicated fixture seeder to DRY this up.
-- Phase 4 carry-over: Member list has no pagination — acceptable up to ~500 rows/clinic (T-04-04-04 accept). Revisit in Phase 6 when redemption UI may force denser scans.
-- Phase 4 carry-over: no audit log of cancellation clicks (T-04-04-06 accept). Stripe's event log is the only paper trail for v1.
-- Phase 5 carry-over: `resend@6.0.3` still listed in package.json but unused. Remove during Phase 6 dependency sweep or next lockfile refresh.
+**Known polish (deferred — safe to cut the v1 demo without):**
+- **Clinic timezone UI** (Phase 6 deferred): schema + default `America/New_York` in place; add a settings-page `<select>` so owner can switch between `America/New_York` and `UTC` for the demo. See `.planning/phases/06-dashboard-metrics-redemption/deferred-items.md`.
+- **Pre-existing `pnpm lint` circular-JSON error** (Phase 6 noted, not introduced): reproduces on pre-Phase-6 `main`. `typecheck` + `build` + `test` all green. Fix belongs in an eslint-config upgrade PR.
+- **`resend@6.0.3` still in package.json** (Phase 5 carry-over) — unused after SendGrid switch. Remove during next dep sweep.
+- **Member list pagination** (Phase 4 carry-over) — fine up to ~500 rows; revisit if demo data grows.
+- **No audit log of cancellation clicks** (Phase 4 carry-over) — Stripe's event log is the v1 paper trail.
+- **Fixture-seed refactor** (Phase 3 carry-over): consider a `withSuperuser()` helper for `tenant.test.ts` + `publish.test.ts` (and now `redemption.test.ts`) to DRY the RLS-bypass fixture pattern.
+- **Non-owner app role in Neon prod** (Phase 2 carry-over): Neon deploy needs a `pawplan_app`-equivalent with NOBYPASSRLS so FORCE RLS is honestly enforced.
 
 ### Blockers/Concerns
 
@@ -136,6 +141,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-23T14:36:00.000Z
-Stopped at: Completed Phase 5 (Notifications + Welcome Packet) — pg-boss queue, SendGrid sandbox-forced wrapper, React-PDF welcome packet, webhook enqueue wired in `checkout.session.completed`. Ready for Phase 6 (Dashboard Metrics + Redemption).
+Last session: 2026-04-23T17:00:00.000Z
+Stopped at: Completed Phase 6 (Dashboard Metrics + Redemption) — MRR/ARR/30-day-forecast/tier-breakdown cards on /dashboard, ServiceRedemption with DB-unique idempotency + optimistic-lock scaffolding, clinic-tz render via Intl.DateTimeFormat + IANA zones, 209 tests across 28 files all green. PawPlan v1 feature scope is COMPLETE — remaining work is demo-ship operator tasks + polish.
 Resume file: None
