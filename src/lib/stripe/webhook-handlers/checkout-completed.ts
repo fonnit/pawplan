@@ -5,6 +5,7 @@ import {
   CHECKOUT_CUSTOM_FIELD_KEYS,
   type CheckoutSubscriptionMetadata,
 } from '@/lib/stripe/types';
+import { enqueueNewEnrollmentJobs } from '@/lib/queue';
 
 export class CheckoutMetadataError extends Error {
   readonly code = 'checkout_metadata_missing';
@@ -108,8 +109,8 @@ export async function handleCheckoutSessionCompleted(
       ?.data[0]?.current_period_end ?? null;
   const currentPeriodEnd = periodEndSec ? new Date(periodEndSec * 1000) : null;
 
-  await withClinic(meta.clinicId, async (tx) => {
-    await tx.member.upsert({
+  const member = await withClinic(meta.clinicId, async (tx) => {
+    return tx.member.upsert({
       where: {
         clinicId_stripeSubscriptionId: {
           clinicId: meta.clinicId!,
@@ -135,6 +136,21 @@ export async function handleCheckoutSessionCompleted(
         status: 'active',
         paymentFailedAt: null,
       },
+      select: { id: true, welcomePacketSentAt: true, ownerNotifiedAt: true },
     });
   });
+
+  // NOTIF-04 — fire-and-forget the welcome packet + owner notification.
+  // Dedupe by Stripe event.id via pg-boss singletonKey; the idempotent
+  // handlers additionally gate on Member timestamps. A short-lived
+  // enqueue failure here SHOULD NOT block the webhook ACK — Stripe
+  // will retry the whole event and recordEvent/markEventProcessed will
+  // re-enter dispatch. But a failure is rare enough we surface it in
+  // logs and let the outer route 500 so the retry actually recovers.
+  if (!member.welcomePacketSentAt || !member.ownerNotifiedAt) {
+    await enqueueNewEnrollmentJobs({
+      memberId: member.id,
+      eventId: event.id,
+    });
+  }
 }

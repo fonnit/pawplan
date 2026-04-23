@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type Stripe from 'stripe';
 
-const { mockUpsert, mockUpdate, mockRetrieve } = vi.hoisted(() => ({
+const { mockUpsert, mockUpdate, mockRetrieve, mockEnqueue } = vi.hoisted(() => ({
   mockUpsert: vi.fn(),
   mockUpdate: vi.fn(),
   mockRetrieve: vi.fn(),
+  mockEnqueue: vi.fn(),
 }));
 
 vi.mock('@/lib/db', () => ({
@@ -27,6 +28,10 @@ vi.mock('@/lib/stripe/client', () => ({
       retrieve: (...args: unknown[]) => mockRetrieve(...args),
     },
   },
+}));
+
+vi.mock('@/lib/queue', () => ({
+  enqueueNewEnrollmentJobs: (...args: unknown[]) => mockEnqueue(...args),
 }));
 
 import { handleCheckoutSessionCompleted } from './checkout-completed';
@@ -84,8 +89,17 @@ describe('handleCheckoutSessionCompleted', () => {
     mockUpsert.mockReset();
     mockUpdate.mockReset();
     mockRetrieve.mockReset();
-    mockUpsert.mockResolvedValue({ id: 'mem_1' });
+    mockEnqueue.mockReset();
+    mockUpsert.mockResolvedValue({
+      id: 'mem_1',
+      welcomePacketSentAt: null,
+      ownerNotifiedAt: null,
+    });
     mockRetrieve.mockResolvedValue(makeSubscriptionRetrieveResult());
+    mockEnqueue.mockResolvedValue({
+      welcomePacketJobId: 'job_wp',
+      ownerEnrollmentJobId: 'job_oe',
+    });
   });
 
   it('creates a Member with status=active on first delivery', async () => {
@@ -156,5 +170,35 @@ describe('handleCheckoutSessionCompleted', () => {
     await handleCheckoutSessionCompleted(evt);
     expect(mockUpsert).not.toHaveBeenCalled();
     expect(mockRetrieve).not.toHaveBeenCalled();
+    expect(mockEnqueue).not.toHaveBeenCalled();
+  });
+
+  it('enqueues new-enrollment jobs on first delivery with event.id for dedupe', async () => {
+    await handleCheckoutSessionCompleted(makeEvent());
+    expect(mockEnqueue).toHaveBeenCalledTimes(1);
+    expect(mockEnqueue).toHaveBeenCalledWith({
+      memberId: 'mem_1',
+      eventId: 'evt_test_1',
+    });
+  });
+
+  it('skips enqueue when both timestamps already stamped (replay after both sends)', async () => {
+    mockUpsert.mockResolvedValueOnce({
+      id: 'mem_1',
+      welcomePacketSentAt: new Date(),
+      ownerNotifiedAt: new Date(),
+    });
+    await handleCheckoutSessionCompleted(makeEvent());
+    expect(mockEnqueue).not.toHaveBeenCalled();
+  });
+
+  it('still enqueues when only one of the two timestamps is set (partial send replay)', async () => {
+    mockUpsert.mockResolvedValueOnce({
+      id: 'mem_1',
+      welcomePacketSentAt: new Date(),
+      ownerNotifiedAt: null,
+    });
+    await handleCheckoutSessionCompleted(makeEvent());
+    expect(mockEnqueue).toHaveBeenCalledTimes(1);
   });
 });
