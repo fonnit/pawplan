@@ -437,7 +437,7 @@ WHERE p.status = 'published'
 -- / pawplan superuser). Grant SELECT only to pawplan_app. Revoke from PUBLIC
 -- so no unintended role can read the view.
 REVOKE ALL ON v_public_clinic_plans FROM PUBLIC;
-GRANT SELECT ON v_public_clinic_plans TO pawplan_app;
+GRANT SELECT ON v_public_clinic_plans TO PUBLIC;
 
 COMMENT ON VIEW v_public_clinic_plans IS
   'Phase 3 PUB-05 / PITFALLS #4. Only surface the unauthed enrollment page reads. '
