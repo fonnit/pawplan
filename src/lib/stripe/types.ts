@@ -145,3 +145,82 @@ export type PublishErrorCode =
 export type PublishPlanResult =
   | { ok: true; snapshot: PublishedPlanSnapshot }
   | { ok: false; error: string; code: PublishErrorCode };
+
+// ─── Phase 4 — Subscription lifecycle (PAY-01..07, DASH-03, DASH-05) ────────
+
+/**
+ * Mirror of the Prisma MemberStatus enum as a TS string union.
+ * Kept in lockstep with prisma/schema.prisma → enum MemberStatus.
+ *
+ * PAY-07: NEVER a boolean. Every codepath must match on this union.
+ */
+export type MemberStatus = 'active' | 'past_due' | 'canceled';
+
+/**
+ * Keys of Stripe Checkout `custom_fields` entries we send, and read back
+ * from `checkout.session.completed`. Both sides of the wire must use these
+ * exact string literals — centralising them here prevents typo drift.
+ *
+ * Stripe requires `key` to be snake_case, max 25 chars, [a-z0-9_].
+ */
+export const CHECKOUT_CUSTOM_FIELD_KEYS = {
+  petName: 'pet_name',
+  species: 'species',
+} as const;
+export type CheckoutCustomFieldKey =
+  (typeof CHECKOUT_CUSTOM_FIELD_KEYS)[keyof typeof CHECKOUT_CUSTOM_FIELD_KEYS];
+
+/**
+ * Species dropdown options for Stripe Checkout's `custom_fields` of type
+ * `dropdown`. Dogs + cats only — REQUIREMENTS.md §Out of Scope explicitly
+ * excludes exotics, equine, livestock in v1.
+ *
+ * Stripe requires `value` to be snake_case lowercase; `label` is user-facing.
+ */
+export const SPECIES_OPTIONS = [
+  { value: 'dog', label: 'Dog' },
+  { value: 'cat', label: 'Cat' },
+] as const;
+export type Species = (typeof SPECIES_OPTIONS)[number]['value'];
+
+/**
+ * Metadata written on every Checkout Session's subscription_data.metadata.
+ * These keys are read back verbatim by the webhook handler (plan 04-03) —
+ * they are the join between Stripe's object graph and PawPlan's DB.
+ *
+ * clinicId + planTierId let checkout.session.completed locate the Member
+ * insert target WITHOUT a Stripe API round-trip.
+ */
+export interface CheckoutSubscriptionMetadata {
+  clinicId: string;
+  planId: string;
+  planTierId: string;
+}
+
+/**
+ * Derive MemberStatus from a Stripe subscription status string. Single source
+ * of truth — the webhook handler calls this when persisting, and the
+ * dashboard loader calls this for on-the-fly refresh if needed.
+ *
+ * Smart Retries are OFF (locked product decision 2026-04-23), so we do NOT
+ * special-case `incomplete` as a separate status — the first failure flips
+ * straight to past_due. Unknown/future values flag past_due (fail-safe:
+ * surface the anomaly in the dashboard, let the owner investigate).
+ */
+export function deriveMemberStatusFromSubscription(status: string): MemberStatus {
+  switch (status) {
+    case 'active':
+    case 'trialing':
+      return 'active';
+    case 'past_due':
+    case 'unpaid':
+    case 'incomplete':
+    case 'incomplete_expired':
+      return 'past_due';
+    case 'canceled':
+      return 'canceled';
+    default:
+      // Unknown status = flag in dashboard. Fail-safe, not fail-open.
+      return 'past_due';
+  }
+}
