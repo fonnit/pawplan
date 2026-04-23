@@ -80,3 +80,68 @@ export function deriveOnboardingState(args: {
  * Use `as Prisma.InputJsonValue` when writing, cast via this type when reading.
  */
 export type StripeRequirementsJson = StripeConnectRequirements & Prisma.JsonObject;
+
+// ─── Phase 3 — Publish types (PUB-03, PUB-04, PUB-05, BLDR-08) ──────────────
+//
+// These types are the canonical shape shared by:
+//   - `publishPlan` server action (plan 03-02)
+//   - `updatePlanPrices` server action (plan 03-04)
+//   - public enrollment page data loader (plan 03-03)
+//
+// Money is in cents (integer). Never Decimal, never float, never USD string.
+
+export interface PublishedPriceHistoryEntry {
+  /** Stripe price ID — `price_…`. */
+  priceId: string;
+  /** Amount in cents (USD). */
+  unitAmountCents: number;
+  /** ISO 8601 string; when this price was created on Stripe. */
+  createdAt: string;
+  /** ISO 8601 string or null; when this price was superseded by a new one. Null = current active price. */
+  replacedAt: string | null;
+}
+
+export interface PublishedPlanTierSnapshot {
+  tierId: string;
+  tierKey: 'preventive' | 'preventive-plus' | 'complete';
+  tierName: string;
+  includedServices: string[];
+  retailValueBundledCents: number;
+  monthlyFeeCents: number;
+  stripeFeePerChargeCents: number;
+  platformFeePerChargeCents: number;
+  clinicGrossPerPetPerYearCents: number;
+  breakEvenMembers: number;
+  stripeProductId: string;
+  stripePriceId: string;
+  ordering: number;
+}
+
+export interface PublishedPlanSnapshot {
+  clinicSlug: string;
+  clinicPracticeName: string;
+  clinicLogoUrl: string | null;
+  clinicAccentColor: 'sage' | 'terracotta' | 'midnight' | 'wine' | 'forest' | 'clay';
+  planId: string;
+  planPublishedAt: Date;
+  tierCount: 2 | 3;
+  tiers: PublishedPlanTierSnapshot[];
+}
+
+/**
+ * Error codes emitted by publishPlan / updatePlanPrices / renameTiers.
+ * Union-of-ok/err keeps UI discrimination simple at the call site.
+ */
+export type PublishErrorCode =
+  | 'NOT_PUBLISH_READY' // isPublishReady(connectSnapshot) === false
+  | 'NO_DRAFT_PLAN'
+  | 'STRIPE_PRODUCT_CREATE_FAILED'
+  | 'STRIPE_PRICE_CREATE_FAILED'
+  | 'VALIDATION_FAILED' // server-side re-run of computeBreakEven disagreed with client snapshot
+  | 'ALREADY_PUBLISHED'
+  | 'UNAUTHENTICATED'
+  | 'NO_CLINIC';
+
+export type PublishPlanResult =
+  | { ok: true; snapshot: PublishedPlanSnapshot }
+  | { ok: false; error: string; code: PublishErrorCode };
