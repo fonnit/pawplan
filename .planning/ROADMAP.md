@@ -31,7 +31,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. An automated cross-tenant test suite confirms that RLS policies block reads of another clinic's rows even when the application layer omits a `WHERE clinic_id` filter.
   4. A 15-scenario unit test file for `lib/pricing/breakEven.ts` passes, covering discount edges (0%, 20%), tier counts (2, 3), species mixes, Stripe fees, and the 10% platform fee as explicit line items.
   5. A clinic owner can complete the 8-question builder, see break-even math recompute live on every input change, and return after logout to find the draft persisted in Postgres.
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Next.js 16 + Tailwind v4 + shadcn/ui scaffold with Prisma Neon adapter + Vitest
+- [ ] 01-02-PLAN.md — Break-even pure function `computeBreakEven` + 15-scenario Vitest suite (MATH-01, TDD)
+- [ ] 01-03-PLAN.md — Prisma schema + Postgres RLS policies + `withClinic` helper + slug safety (FOUND-04, FOUND-05, FOUND-06)
+- [ ] 01-04-PLAN.md — Better Auth email/password + signup/login/logout UI + dashboard shell (FOUND-01, FOUND-02, FOUND-03)
+- [ ] 01-05-PLAN.md — 8-question plan builder with live break-even preview + draft persist + resume (BLDR-01..05)
 **UI hint**: yes
 
 ### Phase 2: Stripe Connect Onboarding
@@ -103,7 +110,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/TBD | Not started | - |
+| 1. Foundation | 0/5 | Not started | - |
 | 2. Stripe Connect Onboarding | 0/TBD | Not started | - |
 | 3. Publish + Public Enrollment Page | 0/TBD | Not started | - |
 | 4. Checkout + Subscription Lifecycle | 0/TBD | Not started | - |
