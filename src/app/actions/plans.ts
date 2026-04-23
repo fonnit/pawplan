@@ -7,6 +7,12 @@ import { PlanBuilderInputsSchema } from '@/lib/pricing/schema';
 import type { PlanBuilderInputs } from '@/lib/pricing/types';
 import { headers } from 'next/headers';
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
+
+// ME-01: Zod uuid() guard for client-supplied plan ids. A malformed uuid
+// string bubbles up as a Postgres "invalid input syntax for uuid" error
+// otherwise, which is both noisy and leaks DB error text (see ME-02).
+const PlanIdSchema = z.string().uuid();
 
 /**
  * Plan persistence server actions (BLDR-03 / BLDR-05).
@@ -79,6 +85,11 @@ export async function saveDraftPlan(input: {
   const data = parsed.data;
   const clinic = await requireClinic();
 
+  // ME-01: validate planId is a real UUID before touching Prisma.
+  if (input.planId !== undefined && !PlanIdSchema.safeParse(input.planId).success) {
+    return { ok: false, error: 'Invalid planId' };
+  }
+
   const result = await withClinic(clinic.id, async (tx) => {
     if (input.planId) {
       return tx.plan.update({
@@ -107,11 +118,19 @@ export async function saveDraftPlan(input: {
 export async function deleteDraftPlan(
   planId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  // ME-01: reject malformed ids before hitting Prisma.
+  if (!PlanIdSchema.safeParse(planId).success) {
+    return { ok: false, error: 'Invalid planId' };
+  }
   const clinic = await requireClinic();
   try {
     await withClinic(clinic.id, (tx) => tx.plan.delete({ where: { id: planId } }));
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: (e as Error).message };
+    // ME-02: do not leak raw Prisma / Postgres error text to the client.
+    // Log server-side for ops visibility; return a generic user-facing
+    // message instead.
+    console.error('deleteDraftPlan failed', { planId, err: e });
+    return { ok: false, error: 'Something went wrong. Please try again.' };
   }
 }
