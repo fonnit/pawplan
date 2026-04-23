@@ -33,6 +33,12 @@ export function PlanBuilder({
   const [saveState, setSaveState] = useState<SaveState>({ kind: 'idle' });
   const [isPending, startTransition] = useTransition();
   const dirtyRef = useRef(false);
+  // ME-04: Track in-flight save at commit time (not via useTransition's
+  // isPending, which flips to false on render batch, not on network
+  // resolution). Guards against clobbering updates when manual save + 30s
+  // autosave overlap.
+  const savingRef = useRef(false);
+  const autosaveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Live break-even recompute (BLDR-03). Pure function — zero I/O.
   const result = useMemo(() => computeBreakEven(inputs), [inputs]);
@@ -43,28 +49,53 @@ export function PlanBuilder({
   }
 
   function save() {
+    // ME-04: coalesce concurrent calls — a manual click mid-autosave (or
+    // vice versa) must not fire a second request. The second call drops
+    // silently; the in-flight save will pick up the latest `inputs`
+    // closure on its next tick.
+    if (savingRef.current) return;
+    savingRef.current = true;
     startTransition(async () => {
       setSaveState({ kind: 'saving' });
-      const res = await saveDraftPlan({ planId, builderInputs: inputs });
-      if (res.ok) {
-        setPlanId(res.planId);
-        setSaveState({ kind: 'saved', at: res.updatedAt });
-        dirtyRef.current = false;
-      } else {
-        setSaveState({ kind: 'error', message: res.error });
+      try {
+        const res = await saveDraftPlan({ planId, builderInputs: inputs });
+        if (res.ok) {
+          setPlanId(res.planId);
+          setSaveState({ kind: 'saved', at: res.updatedAt });
+          dirtyRef.current = false;
+        } else {
+          setSaveState({ kind: 'error', message: res.error });
+        }
+      } finally {
+        savingRef.current = false;
       }
     });
+  }
+
+  // ME-04: Manual save also resets the 30s autosave clock so we don't fire
+  // a redundant autosave seconds after the user clicks Save.
+  function manualSave() {
+    if (autosaveTimerRef.current) {
+      clearInterval(autosaveTimerRef.current);
+      autosaveTimerRef.current = setInterval(autosaveTick, 30_000);
+    }
+    save();
+  }
+
+  function autosaveTick() {
+    if (dirtyRef.current && !savingRef.current) save();
   }
 
   // Autosave every 30s if dirty (UI-SPEC line 172). Skipped when there are
   // no unsaved changes — avoids Postgres churn on an idle builder.
   useEffect(() => {
-    const id = setInterval(() => {
-      if (dirtyRef.current && !isPending) save();
-    }, 30_000);
-    return () => clearInterval(id);
+    autosaveTimerRef.current = setInterval(autosaveTick, 30_000);
+    return () => {
+      if (autosaveTimerRef.current) clearInterval(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPending]);
+  }, []);
 
   return (
     <div className="flex flex-col gap-8 lg:flex-row">
@@ -123,7 +154,7 @@ export function PlanBuilder({
         />
 
         <div className="sticky bottom-0 -mx-6 border-t bg-card px-6 py-4">
-          <Button onClick={save} disabled={isPending} className="h-10 w-full">
+          <Button onClick={manualSave} disabled={isPending} className="h-10 w-full">
             {saveState.kind === 'saving' ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
