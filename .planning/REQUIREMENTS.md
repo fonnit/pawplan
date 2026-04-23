@@ -17,9 +17,9 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 - [x] **FOUND-01**: Clinic owner can create an account with email + password
 - [ ] **FOUND-02**: Clinic owner stays logged in across browser sessions
 - [ ] **FOUND-03**: Clinic owner can log out from any page
-- [ ] **FOUND-04**: Schema enforces per-clinic row-level isolation (RLS on every tenant-owned table)
-- [ ] **FOUND-05**: Clinic slug is unique, lowercase-ASCII, reserved-word-filtered, locked at creation
-- [ ] **FOUND-06**: Single clinic profile (practice name required, logo optional, accent color from 6-preset palette)
+- [x] **FOUND-04**: Schema enforces per-clinic row-level isolation (RLS on every tenant-owned table)
+- [x] **FOUND-05**: Clinic slug is unique, lowercase-ASCII, reserved-word-filtered, locked at creation
+- [x] **FOUND-06**: Single clinic profile (practice name required, logo optional, accent color from 6-preset palette)
 
 ### Break-Even Engine (`MATH`)
 
@@ -111,9 +111,9 @@ Every v1 requirement maps to exactly one phase in ROADMAP.md. Coverage: **42/42*
 | FOUND-01 | Phase 1 | Complete |
 | FOUND-02 | Phase 1 | Pending |
 | FOUND-03 | Phase 1 | Pending |
-| FOUND-04 | Phase 1 | Pending |
-| FOUND-05 | Phase 1 | Pending |
-| FOUND-06 | Phase 1 | Pending |
+| FOUND-04 | Phase 1 | Complete |
+| FOUND-05 | Phase 1 | Complete |
+| FOUND-06 | Phase 1 | Complete |
 | MATH-01 | Phase 1 | Complete |
 | MATH-02 | Phase 3 | Pending |
 | MATH-03 | Phase 3 | Pending |
