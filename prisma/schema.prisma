@@ -12,3 +12,133 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ─── Better Auth (auth-global, NOT RLS-enabled) ────────────────────────────
+
+model User {
+  id            String    @id
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  clinic        Clinic?
+}
+
+model Session {
+  id        String   @id
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerId            String
+  accountId             String
+  password              String?
+  accessToken           String?
+  refreshToken          String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  idToken               String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}
+
+// ─── Tenant-scoped (RLS-enabled via 001-rls-policies.sql) ──────────────────
+
+enum AccentColor {
+  sage
+  terracotta
+  midnight
+  wine
+  forest
+  clay
+}
+
+enum PlanStatus {
+  draft
+  published
+  archived
+}
+
+model Clinic {
+  id           String      @id @default(uuid()) @db.Uuid
+  ownerUserId  String      @unique
+  owner        User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  practiceName String
+  slug         String      @unique
+  logoUrl      String?
+  accentColor  AccentColor @default(sage)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  plans        Plan[]
+
+  @@index([slug])
+}
+
+model Plan {
+  id                        String     @id @default(uuid()) @db.Uuid
+  clinicId                  String     @db.Uuid
+  clinic                    Clinic     @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  status                    PlanStatus @default(draft)
+  builderInputs             Json
+  monthlyProgramOverheadUsd Decimal    @default(500) @db.Decimal(10, 2)
+  tierCount                 Int
+  publishedAt               DateTime?
+  createdAt                 DateTime   @default(now())
+  updatedAt                 DateTime   @updatedAt
+  tiers                     PlanTier[]
+
+  @@index([clinicId, status])
+}
+
+model PlanTier {
+  id                            String   @id @default(uuid()) @db.Uuid
+  planId                        String   @db.Uuid
+  plan                          Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  clinicId                      String   @db.Uuid
+  tierKey                       String
+  tierName                      String
+  includedServices              Json
+  retailValueBundledCents       Int
+  monthlyFeeCents               Int
+  stripeFeePerChargeCents       Int
+  platformFeePerChargeCents     Int
+  clinicGrossPerPetPerYearCents Int
+  breakEvenMembers              Int
+  ordering                      Int
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  @@index([planId, ordering])
+  @@index([clinicId])
+}
