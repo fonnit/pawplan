@@ -75,6 +75,16 @@ export async function syncConnectStatus(): Promise<void> {
     select: { id: true, stripeAccountId: true },
   });
   if (!clinic?.stripeAccountId) return;
-  const account = await stripe.accounts.retrieve(clinic.stripeAccountId);
-  await persistAccountSnapshot(accountToSnapshot(account), 'direct');
+  try {
+    const account = await stripe.accounts.retrieve(clinic.stripeAccountId);
+    await persistAccountSnapshot(accountToSnapshot(account), 'direct');
+  } catch (err) {
+    // Webhook is the authoritative path; this defensive refresh must
+    // never 500 the dashboard on a Stripe rate-limit / 5xx / network
+    // blip. Log and fall through so the caller renders cached state.
+    console.warn('syncConnectStatus failed', {
+      stripeAccountId: clinic.stripeAccountId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
