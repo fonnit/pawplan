@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db';
 import { withClinic } from '@/lib/tenant';
 import { cancelSubscriptionAtPeriodEnd } from '@/lib/stripe/cancel-subscription';
 import type { MemberStatus } from '@/lib/stripe/types';
+import { billingPeriodStartFrom } from '@/lib/time';
 
 /**
  * Members dashboard server actions (DASH-03, DASH-05).
@@ -39,6 +40,12 @@ export interface MemberRow {
   currentPeriodEnd: Date | null;
   paymentFailedAt: Date | null;
   canceledAt: Date | null;
+  /** Phase 6 DASH-02 — services included in the member's tier (service keys). */
+  includedServices: string[];
+  /** Phase 6 DASH-02 — services already redeemed in the current billing period. */
+  redeemedServiceKeys: string[];
+  /** Phase 6 DASH-06 — current billing-period anchor in UTC (or null if none). */
+  billingPeriodStart: Date | null;
 }
 
 export async function listMembers(): Promise<MemberRow[]> {
@@ -56,7 +63,7 @@ export async function listMembers(): Promise<MemberRow[]> {
         currentPeriodEnd: true,
         paymentFailedAt: true,
         canceledAt: true,
-        planTier: { select: { tierName: true } },
+        planTier: { select: { tierName: true, includedServices: true } },
       },
       orderBy: [
         { paymentFailedAt: { sort: 'desc', nulls: 'last' } },
@@ -64,18 +71,56 @@ export async function listMembers(): Promise<MemberRow[]> {
       ],
     });
 
-    return rows.map((r) => ({
-      id: r.id,
-      petName: r.petName,
-      species: r.species,
-      ownerEmail: r.ownerEmail,
-      tierName: r.planTier.tierName,
-      status: r.status as MemberStatus,
-      enrolledAt: r.enrolledAt,
-      currentPeriodEnd: r.currentPeriodEnd,
-      paymentFailedAt: r.paymentFailedAt,
-      canceledAt: r.canceledAt,
-    }));
+    // Load redemptions for ALL members in one query, scoped to each member's
+    // current billing period. The fan-out is per-member because each has its
+    // own period anchor. Small N (single-page member list) so we OR the
+    // (memberId, billingPeriodStart) tuples in a single findMany.
+    const memberPeriods = rows
+      .map((r) => ({
+        memberId: r.id,
+        periodStart: billingPeriodStartFrom(r.currentPeriodEnd),
+      }))
+      .filter((p): p is { memberId: string; periodStart: Date } => p.periodStart !== null);
+
+    const redemptions = memberPeriods.length
+      ? await tx.serviceRedemption.findMany({
+          where: {
+            OR: memberPeriods.map((p) => ({
+              memberId: p.memberId,
+              billingPeriodStart: p.periodStart,
+            })),
+          },
+          select: { memberId: true, serviceKey: true },
+        })
+      : [];
+
+    const byMember = new Map<string, string[]>();
+    for (const r of redemptions) {
+      const arr = byMember.get(r.memberId) ?? [];
+      arr.push(r.serviceKey);
+      byMember.set(r.memberId, arr);
+    }
+
+    return rows.map((r) => {
+      const services = Array.isArray(r.planTier.includedServices)
+        ? (r.planTier.includedServices as unknown[]).map(String)
+        : [];
+      return {
+        id: r.id,
+        petName: r.petName,
+        species: r.species,
+        ownerEmail: r.ownerEmail,
+        tierName: r.planTier.tierName,
+        status: r.status as MemberStatus,
+        enrolledAt: r.enrolledAt,
+        currentPeriodEnd: r.currentPeriodEnd,
+        paymentFailedAt: r.paymentFailedAt,
+        canceledAt: r.canceledAt,
+        includedServices: services,
+        redeemedServiceKeys: byMember.get(r.id) ?? [],
+        billingPeriodStart: billingPeriodStartFrom(r.currentPeriodEnd),
+      };
+    });
   });
 }
 

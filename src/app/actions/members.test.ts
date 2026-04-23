@@ -11,6 +11,7 @@ const {
   cancelSubFn,
   getSession,
   revalidatePathMock,
+  redemptionFindMany,
 } = vi.hoisted(() => ({
   findMany: vi.fn(),
   findUniqueClinic: vi.fn(),
@@ -19,6 +20,7 @@ const {
   cancelSubFn: vi.fn(),
   getSession: vi.fn(),
   revalidatePathMock: vi.fn(),
+  redemptionFindMany: vi.fn(),
 }));
 
 vi.mock('@/lib/db', () => ({
@@ -34,6 +36,9 @@ vi.mock('@/lib/tenant', () => ({
         findMany,
         findUnique: findUniqueMember,
         update: memberUpdate,
+      },
+      serviceRedemption: {
+        findMany: redemptionFindMany,
       },
     }),
 }));
@@ -64,10 +69,13 @@ beforeEach(() => {
   cancelSubFn.mockReset();
   getSession.mockReset();
   revalidatePathMock.mockReset();
+  redemptionFindMany.mockReset();
 
   // Default happy-path auth.
   getSession.mockResolvedValue({ user: { id: USER_ID } });
   findUniqueClinic.mockResolvedValue({ id: CLINIC_ID });
+  // Default no redemptions — tests that need rows override this.
+  redemptionFindMany.mockResolvedValue([]);
 });
 
 // ─── listMembers ───────────────────────────────────────────────────────────
@@ -85,7 +93,10 @@ describe('listMembers', () => {
         currentPeriodEnd: new Date('2026-05-10'),
         paymentFailedAt: new Date('2026-04-22'),
         canceledAt: null,
-        planTier: { tierName: 'Preventive Plus' },
+        planTier: {
+          tierName: 'Preventive Plus',
+          includedServices: ['annual-exam', 'core-vaccines'],
+        },
       },
       {
         id: 'm2',
@@ -97,7 +108,10 @@ describe('listMembers', () => {
         currentPeriodEnd: new Date('2026-05-20'),
         paymentFailedAt: null,
         canceledAt: null,
-        planTier: { tierName: 'Preventive' },
+        planTier: {
+          tierName: 'Preventive',
+          includedServices: ['annual-exam'],
+        },
       },
     ]);
 
@@ -105,6 +119,7 @@ describe('listMembers', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]!.petName).toBe('Rex');
     expect(rows[0]!.tierName).toBe('Preventive Plus');
+    expect(rows[0]!.includedServices).toEqual(['annual-exam', 'core-vaccines']);
     expect(rows[1]!.petName).toBe('Whiskers');
 
     // Verify sort: paymentFailedAt desc (nulls-last), then enrolledAt desc.
@@ -127,7 +142,10 @@ describe('listMembers', () => {
         currentPeriodEnd: null,
         paymentFailedAt: null,
         canceledAt: null,
-        planTier: { tierName: 'Preventive' },
+        planTier: {
+          tierName: 'Preventive',
+          includedServices: ['annual-exam'],
+        },
       },
     ]);
 

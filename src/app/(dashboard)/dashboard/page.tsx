@@ -10,6 +10,7 @@ import type { StripeConnectRequirements } from '@/lib/stripe/types';
 import { getPublishBlockedReason } from '@/lib/stripe/connect';
 import { syncConnectStatus } from '@/app/actions/stripe';
 import { getActiveDraft } from '@/app/actions/plans';
+import { loadDashboardMetrics } from '@/app/actions/metrics';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +22,7 @@ import {
 import { DraftCard } from '@/components/builder/draft-card';
 import { StripeConnectCard } from '@/components/dashboard/stripe-connect-card';
 import { OnboardingBanner } from '@/components/dashboard/onboarding-banner';
+import { DashboardMetricsCards } from '@/components/dashboard/metrics-cards';
 
 export default async function DashboardHome({
   searchParams,
@@ -67,6 +69,11 @@ export default async function DashboardHome({
 
   const draft = await getActiveDraft();
 
+  // Phase 6 (DASH-01): show metrics only once onboarding is complete — otherwise
+  // we'd render zeroed cards over a still-onboarding clinic. The state='complete'
+  // gate keeps the empty-metrics case out of view and out of the query path.
+  const metrics = state === 'complete' ? await loadDashboardMetrics() : null;
+
   return (
     <div>
       {/* Onboarding surface — exactly one of: connect card / banner / nothing (when complete). */}
@@ -82,6 +89,9 @@ export default async function DashboardHome({
           blockedReason={blockedReason ?? 'Complete Stripe onboarding to publish.'}
         />
       )}
+
+      {/* Phase 6 metrics — only after onboarding completes. */}
+      {metrics && <DashboardMetricsCards metrics={metrics} />}
 
       {/* Primary content — existing Phase 1 draft surface, preserved unchanged. */}
       {draft ? (
