@@ -82,10 +82,21 @@ export async function createEnrollmentCheckoutSession(
   const minuteBucket = Math.floor(Date.now() / 60_000);
   const idempotencyKey = `enroll:${clinic.id}:${tier.id}:${minuteBucket}`;
 
+  // Stripe Accounts V2 (new Connect platform API) rejects Checkout sessions
+  // created in testmode without an existing Customer. Pre-create a blank
+  // Customer so the session has one to attach to. The Customer gets its
+  // email + name filled in via the Checkout form. Idempotency key ties it
+  // to the same bucket as the Checkout session so rage-clicks don't spawn
+  // orphan customers.
+  const customer = await stripe.customers.create(
+    ownerEmailHint ? { email: ownerEmailHint } : {},
+    { idempotencyKey: `${idempotencyKey}:customer` },
+  );
+
   const params: Stripe.Checkout.SessionCreateParams = {
     mode: 'subscription',
+    customer: customer.id,
     line_items: [{ price: tier.stripePriceId, quantity: 1 }],
-    ...(ownerEmailHint ? { customer_email: ownerEmailHint } : {}),
     custom_fields: [
       {
         key: CHECKOUT_CUSTOM_FIELD_KEYS.petName,

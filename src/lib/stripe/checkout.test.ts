@@ -13,10 +13,14 @@ vi.mock('./client', () => ({
         create: vi.fn(),
       },
     },
+    customers: {
+      create: vi.fn(),
+    },
   },
 }));
 
 const createMock = stripe.checkout.sessions.create as unknown as ReturnType<typeof vi.fn>;
+const customersCreateMock = stripe.customers.create as unknown as ReturnType<typeof vi.fn>;
 
 const clinic = {
   id: '11111111-1111-1111-1111-111111111111',
@@ -36,6 +40,8 @@ beforeEach(() => {
     id: 'cs_test',
     url: 'https://checkout.stripe.com/c/pay/cs_test',
   });
+  customersCreateMock.mockReset();
+  customersCreateMock.mockResolvedValue({ id: 'cus_TEST_MOCK' });
 });
 
 describe('createEnrollmentCheckoutSession', () => {
@@ -104,15 +110,20 @@ describe('createEnrollmentCheckoutSession', () => {
     expect(opts.stripeAccount).toBeUndefined();
   });
 
-  it('pre-fills customer_email when ownerEmailHint provided', async () => {
+  it('pre-creates Stripe Customer with email when ownerEmailHint provided', async () => {
     await createEnrollmentCheckoutSession({
       clinic,
       tier,
       origin: 'https://pawplan.app',
       ownerEmailHint: 'owner@example.com',
     });
-    const [params] = createMock.mock.calls[0]!;
-    expect(params.customer_email).toBe('owner@example.com');
+    // Accounts V2 requires a Customer to exist before Checkout create.
+    // Email hint flows through the Customer create, not a Session param.
+    const [customerParams] = customersCreateMock.mock.calls[0]!;
+    expect(customerParams).toEqual({ email: 'owner@example.com' });
+    const [sessionParams] = createMock.mock.calls[0]!;
+    expect(sessionParams.customer).toBe('cus_TEST_MOCK');
+    expect(sessionParams.customer_email).toBeUndefined();
   });
 
   it('throws EnrollmentNotReadyError if clinic has no stripeAccountId', async () => {
