@@ -125,7 +125,13 @@ export async function POST(_req: Request, ctx: RouteContext): Promise<Response> 
     if (err instanceof EnrollmentNotReadyError) {
       return NextResponse.json({ error: err.code }, { status: 409 });
     }
-    console.error('[enroll] checkout session create failed', err);
-    return NextResponse.json({ error: 'checkout_failed' }, { status: 500 });
+    // Surface the raw Stripe/Prisma message so debugging isn't opaque.
+    // Stripe error messages are human-readable and don't contain secrets.
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error('[enroll] checkout session create failed', { slug, tierId, detail });
+    return NextResponse.json(
+      { error: 'checkout_failed', detail },
+      { status: 500 },
+    );
   }
 }

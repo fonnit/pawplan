@@ -56,11 +56,16 @@ export function TierComparison({ clinicSlug, clinicAccentColor, tiers }: TierCom
         headers: { 'content-type': 'application/json' },
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          detail?: string;
+        };
         toast.error(
           body.error === 'clinic_not_accepting_enrollments'
             ? 'This clinic is not currently accepting enrollments.'
-            : 'We could not start checkout. Please try again.',
+            : body.detail
+              ? `Checkout failed: ${body.detail}`
+              : 'We could not start checkout. Please try again.',
         );
         setPendingTierId(null);
         return;
