@@ -1,11 +1,20 @@
 'use client';
 
 import type { BreakEvenResult, TierQuote } from '@/lib/pricing/types';
+import { BreakEvenLineItems } from '@/app/(dashboard)/dashboard/plans/_components/break-even-line-items';
 
 /**
  * Break-even preview — sticky right pane that re-renders on every builder
- * input change (BLDR-03). All numbers in Geist Mono with tabular-nums so
- * columns align across tiers.
+ * input change (BLDR-03 / MATH-02).
+ *
+ * Phase 3 refactor: line-item rows now render through the shared
+ * `BreakEvenLineItems` component so the builder live preview and the
+ * published-plan dashboard panel produce identical output (MATH-04 / MATH-05).
+ * The builder owns tier-name + monthly-fee headers; the shared component owns
+ * the six-row breakdown.
+ *
+ * computeBreakEven returns USD floats; we convert to cents with
+ * Math.round(usd * 100) at the boundary. Keeps everything downstream in cents.
  */
 export function BreakEvenPanel({ result }: { result: BreakEvenResult | null }) {
   if (!result || result.tiers.length === 0) {
@@ -37,15 +46,23 @@ export function BreakEvenPanel({ result }: { result: BreakEvenResult | null }) {
       </p>
       <div className="mt-6 space-y-6">
         {result.tiers.map((tier, idx) => (
-          <TierCard key={tier.tierKey} tier={tier} withSeparator={idx > 0} />
+          <TierBlock key={tier.tierKey} tier={tier} withSeparator={idx > 0} />
         ))}
       </div>
     </aside>
   );
 }
 
-function TierCard({ tier, withSeparator }: { tier: TierQuote; withSeparator: boolean }) {
+const usdToCents = (usd: number): number =>
+  Number.isFinite(usd) ? Math.round(usd * 100) : 0;
+
+function TierBlock({ tier, withSeparator }: { tier: TierQuote; withSeparator: boolean }) {
   const li = tier.lineItems;
+  // Infinity break-even (monthly fee too low) → 0 sentinel, matching how the
+  // updatePlanPrices DB write coerces. BreakEvenLineItems maps 0 → "Monthly
+  // fee too low".
+  const breakEven = Number.isFinite(li.breakEvenMembers) ? li.breakEvenMembers : 0;
+
   return (
     <div className={withSeparator ? 'border-t pt-6' : ''}>
       <div className="flex items-baseline justify-between">
@@ -54,39 +71,16 @@ function TierCard({ tier, withSeparator }: { tier: TierQuote; withSeparator: boo
           ${li.monthlyFeeUsd.toFixed(2)}/mo
         </span>
       </div>
-
-      <dl className="mt-4 space-y-1 font-mono text-sm tabular-nums">
-        <Row label="Retail value bundled" value={`$${li.retailValueBundledUsd.toFixed(2)}`} />
-        <Row label="Monthly fee" value={`$${li.monthlyFeeUsd.toFixed(2)}`} />
-        <Row
-          label="Stripe processing estimate"
-          value={`−$${li.stripeFeePerChargeUsd.toFixed(2)}`}
+      <div className="mt-3">
+        <BreakEvenLineItems
+          retailValueBundledCents={usdToCents(li.retailValueBundledUsd)}
+          monthlyFeeCents={usdToCents(li.monthlyFeeUsd)}
+          stripeFeePerChargeCents={usdToCents(li.stripeFeePerChargeUsd)}
+          platformFeePerChargeCents={usdToCents(li.platformFeePerChargeUsd)}
+          clinicGrossPerPetPerYearCents={usdToCents(li.clinicGrossPerPetPerYearUsd)}
+          breakEvenMembers={breakEven}
         />
-        <Row
-          label="PawPlan platform fee (10%)"
-          value={`−$${li.platformFeePerChargeUsd.toFixed(2)}`}
-        />
-        <Row
-          label="Clinic gross per pet per year"
-          value={`$${li.clinicGrossPerPetPerYearUsd.toFixed(2)}`}
-        />
-      </dl>
-
-      <div className="mt-4 flex items-baseline justify-between border-t pt-4">
-        <span className="text-sm font-semibold">Members to break even</span>
-        <span className="font-mono text-[20px] font-semibold tabular-nums text-primary">
-          {Number.isFinite(li.breakEvenMembers) ? li.breakEvenMembers : '—'}
-        </span>
       </div>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <dt className="font-sans text-xs text-muted-foreground">{label}</dt>
-      <dd>{value}</dd>
     </div>
   );
 }

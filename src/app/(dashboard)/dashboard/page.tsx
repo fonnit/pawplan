@@ -12,10 +12,15 @@ import { syncConnectStatus } from '@/app/actions/stripe';
 import { getActiveDraft } from '@/app/actions/plans';
 
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { DraftCard } from '@/components/builder/draft-card';
 import { StripeConnectCard } from '@/components/dashboard/stripe-connect-card';
 import { OnboardingBanner } from '@/components/dashboard/onboarding-banner';
-import { PublishButton } from '@/components/dashboard/publish-button';
 
 export default async function DashboardHome({
   searchParams,
@@ -89,7 +94,26 @@ export default async function DashboardHome({
             }}
           />
           <div className="mt-6 flex justify-center">
-            <PublishButton canPublish={canPublish} blockedReason={blockedReason} />
+            {canPublish ? (
+              <Button asChild size="lg">
+                <Link href="/dashboard/plans">Review &amp; publish</Link>
+              </Button>
+            ) : (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0} aria-describedby="publish-blocked">
+                      <Button type="button" disabled size="lg" aria-disabled>
+                        Publish plan
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent id="publish-blocked">
+                    {blockedReason ?? 'Publish is currently unavailable.'}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
         </div>
       ) : (
