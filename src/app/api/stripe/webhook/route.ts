@@ -40,8 +40,14 @@ export async function POST(req: Request): Promise<Response> {
 
   // Idempotency — PK collision on event.id = duplicate delivery.
   // PITFALLS #2: at-least-once delivery means replay is expected.
-  const { duplicate } = await recordEvent(event);
-  if (duplicate) {
+  //
+  // "Already processed" (processedAt != null) short-circuits with 200.
+  // "Seen but failed" (processedAt == null) falls through so Stripe's
+  // retry actually gets re-dispatched — otherwise a transient DB hiccup
+  // on first delivery leaves the clinic stuck forever because every
+  // subsequent retry would also 200 out without running the handler.
+  const { duplicate, alreadyProcessed } = await recordEvent(event);
+  if (duplicate && alreadyProcessed) {
     return new Response('duplicate', { status: 200 });
   }
 
@@ -49,9 +55,13 @@ export async function POST(req: Request): Promise<Response> {
     await dispatch(event);
     await markEventProcessed(event.id);
   } catch (err) {
-    // Don't surface the error to Stripe — that triggers retry storms.
-    // Record and move on; a reconciliation job can retry manually later.
+    // Mark the row failed for forensic history, then return 5xx so
+    // Stripe's exponential-backoff retry (~3 days) re-delivers. The
+    // replay will find processedAt=null and re-enter the dispatch path
+    // above. This is the ONLY recovery mechanism for transient failures;
+    // swallowing with 200 previously broke the retry contract entirely.
     await markEventFailed(event.id, err);
+    return new Response('handler failed', { status: 500 });
   }
 
   return new Response('ok', { status: 200 });

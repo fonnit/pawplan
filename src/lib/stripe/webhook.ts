@@ -50,19 +50,26 @@ export function verifyWebhookSignature(
 /**
  * Record a verified Stripe event in the idempotency store.
  *
- * First delivery:  INSERT succeeds → returns { duplicate: false }
- * Retry delivery:  PK collision on event.id → returns { duplicate: true }
+ * First delivery:        INSERT succeeds → { duplicate: false, alreadyProcessed: false }
+ * Retry of processed:    row exists with processedAt != null → { duplicate: true, alreadyProcessed: true }
+ * Retry of failed event: row exists with processedAt == null → { duplicate: true, alreadyProcessed: false }
+ *
+ * The alreadyProcessed flag lets the webhook route distinguish "already
+ * handled, ACK with 200" from "previous attempt failed, re-dispatch so
+ * Stripe's retry actually recovers the event."
  *
  * Callers pattern:
- *   const { duplicate } = await recordEvent(event);
- *   if (duplicate) return new Response('ok', { status: 200 });
- *   // …process event…
+ *   const { duplicate, alreadyProcessed } = await recordEvent(event);
+ *   if (duplicate && alreadyProcessed) return new Response('ok', { status: 200 });
+ *   // …process (or re-process after a failure)…
  *   await markEventProcessed(event.id);
  *
  * PITFALL reference: PITFALLS.md #2 — Stripe guarantees at-least-once
  * delivery. Handlers MUST be idempotent on event.id.
  */
-export async function recordEvent(event: Stripe.Event): Promise<{ duplicate: boolean }> {
+export async function recordEvent(
+  event: Stripe.Event,
+): Promise<{ duplicate: boolean; alreadyProcessed: boolean }> {
   try {
     await prisma.stripeEvent.create({
       data: {
@@ -74,7 +81,7 @@ export async function recordEvent(event: Stripe.Event): Promise<{ duplicate: boo
         receivedAt: new Date(event.created * 1000),
       },
     });
-    return { duplicate: false };
+    return { duplicate: false, alreadyProcessed: false };
   } catch (err) {
     // Prisma error P2002 = unique-constraint violation on PK (event.id).
     // Detect via error code without importing Prisma's Runtime error classes
@@ -85,7 +92,17 @@ export async function recordEvent(event: Stripe.Event): Promise<{ duplicate: boo
       'code' in err &&
       (err as { code?: string }).code === 'P2002'
     ) {
-      return { duplicate: true };
+      // Row exists — check whether the prior attempt actually finished.
+      // If processedAt is null, the previous dispatch failed (or crashed
+      // mid-flight) and Stripe is retrying; we MUST re-run the handler.
+      const existing = await prisma.stripeEvent.findUnique({
+        where: { id: event.id },
+        select: { processedAt: true },
+      });
+      return {
+        duplicate: true,
+        alreadyProcessed: existing?.processedAt != null,
+      };
     }
     throw err;
   }
