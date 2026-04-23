@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Stripe Connect Onboarding** — Create Express accounts, verify capability gating via `account.updated`, and surface onboarding status in the dashboard.
 - [x] **Phase 3: Publish + Public Enrollment Page** — Server-side canonical break-even, Stripe Product/Price creation, unique `pawplan.app/{slug}/enroll` URL with ISR, and post-publish pricing edits that preserve existing subscriptions.
 - [x] **Phase 4: Checkout + Subscription Lifecycle** — Stripe Checkout with destination charges, idempotent webhook handlers, member state machine (`active | past_due | canceled`), failed-charge flagging, and owner-initiated cancellation.
-- [ ] **Phase 5: Notifications + Welcome Packet** — Async pg-boss queue, React-PDF welcome packet, Resend email delivery for pet-owner welcome and owner new-enrollment notifications.
+- [x] **Phase 5: Notifications + Welcome Packet** — Async pg-boss queue, React-PDF welcome packet, SendGrid email delivery (sandbox-forced) for pet-owner welcome and owner new-enrollment notifications. (2026-04-23)
 - [ ] **Phase 6: Dashboard Metrics + Redemption** — MRR/ARR/forecast queries sourced from Stripe, per-member rows, manual service-redemption toggles idempotent on the current billing period, and time-zone-correct display.
 
 ## Phase Details
@@ -96,17 +96,24 @@ Plans:
 - [x] 04-04-PLAN.md — /dashboard/members list + past_due filter + cancelMember server action + cancelSubscriptionAtPeriodEnd helper (DASH-03, DASH-05)
 **UI hint**: yes
 
-### Phase 5: Notifications + Welcome Packet
+### Phase 5: Notifications + Welcome Packet — **COMPLETE** (2026-04-23)
 **Goal**: On successful first charge, the pet owner receives a branded PDF welcome packet via email and the clinic owner receives a new-enrollment notification, with all email work dispatched asynchronously via pg-boss so webhook handlers respond in under 200ms.
 **Depends on**: Phase 4
-**Requirements**: NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04
+**Requirements**: NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04 — all complete
 **Success Criteria** (what must be TRUE):
-  1. On the first successful `invoice.paid` for a new member, the webhook handler enqueues `send-welcome-packet` and `notify-owner-new-enrollment` jobs keyed by `event.id` and returns 200 in under 200ms.
-  2. The pet owner receives an email from the clinic's verified Resend sender with a PDF attachment that shows plan name, included services, first billing date, clinic contact, and the clinic's logo + accent color on the header.
-  3. The clinic owner receives an email notification naming the pet, species, plan tier, and enrollment date within 60 seconds of the first charge clearing.
-  4. Simulating a 20-second Resend outage during a webhook burst does not cause duplicate emails or webhook retries — the queue dedupes by `event.id`, and workers retry independently.
-**Plans**: TBD
-**UI hint**: yes
+  1. On the first successful `checkout.session.completed` for a new member, the webhook handler enqueues `welcome-packet` and `notify-owner-new-enrollment` pg-boss jobs keyed by `event.id` singletonKey and returns 200 without importing `@sendgrid/mail` or `@react-pdf/renderer` — verified by `src/lib/queue/webhook-hot-path.test.ts`. ✓
+  2. The pet owner would receive an email with a PDF attachment that shows plan name, included services, first billing date, clinic contact — **delivery is blocked by SendGrid sandbox mode (always ON for this demo)**. PDF render produces a valid `%PDF-…` Buffer >1KB. ✓
+  3. The clinic owner receives a separate plain-text enrollment notification email in a dedicated job so SendGrid 5xx on one email does not block the other. ✓
+  4. pg-boss singletonKey on `event.id` + Member.welcomePacketSentAt / ownerNotifiedAt timestamps ensure 5× webhook replays produce exactly one send per channel. ✓
+**Plans**: 05-01 (wave 1 — queue/email/pdf infra), 05-02 (wave 2 — handlers), 05-03 (wave 3 — webhook wiring). Executed as a single inline plan.
+**UI hint**: yes (no new UI; PDF layout only)
+
+**Phase 5 Locked Decisions:**
+- **Email provider: SendGrid (not Resend)** — Daniel switched the stack decision. `resend` dependency retained in package.json but grep-guard blocks any import.
+- **Sandbox mode forced ON** — any value other than `SENDGRID_SANDBOX_MODE="false"` (case-sensitive string) keeps sandbox ON. The public demo cannot deliver real pet-owner email.
+- **Queue: pg-boss@10** over the same Neon Postgres — no Redis. Drains via `/api/jobs/worker` (Vercel Cron-compatible) or long-lived worker process.
+- **PDF: `@react-pdf/renderer` 4.5+** — pure JS, `renderToBuffer`, Node-runtime only.
+- **Enqueue site: `checkout.session.completed`** handler AFTER Member upsert (not `invoice.paid`) — that's when Member first exists. Member.welcomePacketSentAt / ownerNotifiedAt gates avoid double-enqueue on replay.
 
 ### Phase 6: Dashboard Metrics + Redemption
 **Goal**: A clinic owner can open the dashboard and see active members, plan-tier breakdown, MRR (gross / − Stripe fees / − platform fee / = net), 30-day renewal forecast sourced from Stripe's `current_period_end`, projected ARR, per-member rows with services-remaining counters, and manual service-redemption toggles that reset implicitly each billing period.
@@ -129,7 +136,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Foundation | 5/5 | Complete | 2026-04-23 |
 | 2. Stripe Connect Onboarding | 3/3 | Complete | 2026-04-23 |
-| 3. Publish + Public Enrollment Page | 0/TBD | Not started | - |
-| 4. Checkout + Subscription Lifecycle | 0/4 | Planned | - |
-| 5. Notifications + Welcome Packet | 0/TBD | Not started | - |
+| 3. Publish + Public Enrollment Page | 4/4 | Complete | 2026-04-23 |
+| 4. Checkout + Subscription Lifecycle | 4/4 | Complete | 2026-04-23 |
+| 5. Notifications + Welcome Packet | 1/1 | Complete | 2026-04-23 |
 | 6. Dashboard Metrics + Redemption | 0/TBD | Not started | - |

@@ -61,10 +61,10 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 
 ### Notifications + Welcome Packet (`NOTIF`)
 
-- [ ] **NOTIF-01**: On successful first charge, system generates a PDF welcome packet (plan name, included services, first billing date, clinic contact)
-- [ ] **NOTIF-02**: PDF is emailed to the pet owner via Resend as an attachment
-- [ ] **NOTIF-03**: Owner receives an email notification of the new enrollment
-- [ ] **NOTIF-04**: Email delivery runs asynchronously (pg-boss or equivalent) — webhook handler never blocks on Resend
+- [x] **NOTIF-01**: On successful first charge, system generates a PDF welcome packet (plan name, included services, first billing date, clinic contact) — `@react-pdf/renderer` component in `src/lib/pdf/welcome-packet.tsx`, rendered in the `send-welcome-packet` worker (Phase 5)
+- [x] **NOTIF-02**: PDF is emailed to the pet owner as an attachment — delivered via **SendGrid** (not Resend; Daniel-locked switch) with sandbox mode FORCED ON for the public demo; `src/lib/jobs/send-welcome-packet.ts` (Phase 5)
+- [x] **NOTIF-03**: Owner receives an email notification of the new enrollment — separate pg-boss job `notify-owner-new-enrollment`, plain-text body, idempotent on `Member.ownerNotifiedAt` (Phase 5)
+- [x] **NOTIF-04**: Email delivery runs asynchronously via pg-boss@10 — webhook handler never imports SendGrid or react-pdf; grep-asserted in `src/lib/queue/webhook-hot-path.test.ts` across all 7 hot-path source files (Phase 5)
 
 ### Dashboard + Redemption (`DASH`)
 
@@ -140,10 +140,10 @@ Every v1 requirement maps to exactly one phase in ROADMAP.md. Coverage: **42/42*
 | PAY-05 | Phase 4 | Complete (grep-guarded in invoice-payment-failed.ts) |
 | PAY-06 | Phase 4 | Complete |
 | PAY-07 | Phase 4 | Complete (Postgres enum + TS union; zero boolean member flags) |
-| NOTIF-01 | Phase 5 | Pending |
-| NOTIF-02 | Phase 5 | Pending |
-| NOTIF-03 | Phase 5 | Pending |
-| NOTIF-04 | Phase 5 | Pending |
+| NOTIF-01 | Phase 5 | Complete |
+| NOTIF-02 | Phase 5 | Complete |
+| NOTIF-03 | Phase 5 | Complete |
+| NOTIF-04 | Phase 5 | Complete |
 | DASH-01 | Phase 6 | Pending |
 | DASH-02 | Phase 6 | Pending |
 | DASH-03 | Phase 4 | Complete (dashboard past_due filter + attention-red badge color family) |
