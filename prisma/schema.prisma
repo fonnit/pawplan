@@ -111,6 +111,14 @@ model Clinic {
   slug         String      @unique
   logoUrl      String?
   accentColor  AccentColor @default(sage)
+  // ─── Phase 6 (DASH-06) ───────────────────────────────────────────────────
+  // IANA time-zone identifier used to render dates in the owner dashboard.
+  // Storage everywhere in Postgres stays UTC (DateTime columns are
+  // timestamptz under the hood). Only the render layer shifts.
+  // Default America/New_York — picked for the East-Coast demo clinic; the
+  // owner can change it later from the clinic settings form. Never read this
+  // in any data query — it's a pure rendering input.
+  timezone     String      @default("America/New_York")
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   plans        Plan[]
@@ -268,9 +276,61 @@ model Member {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  redemptions ServiceRedemption[]
+
   // Indexes optimized for the dashboard members page + webhook upsert.
   @@unique([clinicId, stripeSubscriptionId]) // webhook replay safety
   @@index([clinicId, status]) // filter past_due / active
   @@index([clinicId, paymentFailedAt]) // DASH-03 filterable failed flag
   @@index([planTierId])
+}
+
+// ─── Phase 6 — Manual service redemption tracking (DASH-04) ─────────────────
+//
+// One row per (member, service, billing-period-start) represents a staff
+// "this was redeemed" toggle. Absence of a row ≡ not redeemed; presence ≡
+// redeemed. No separate boolean column — the existence is the state. Toggling
+// off DELETEs the row.
+//
+// Idempotency guarantee is the DB unique index on
+// (memberId, serviceKey, billingPeriodStart). Two simultaneous INSERT requests
+// → exactly one row persists, the other gets a unique-violation. The app
+// layer translates the violation into "already redeemed."
+//
+// Optimistic locking (`version`) guards concurrent DELETE-then-INSERT flows
+// in the UI (double-click race, two staff toggling the same service at
+// once). The server rejects UPDATEs where the client's version doesn't match
+// the row's current version — the UI surfaces "out of date, refresh" to the
+// operator.
+//
+// RLS is enabled via prisma/sql/006-redemption-rls.sql. Clinic scope is
+// enforced indirectly through Member.clinicId (policy joins Member) so no
+// denormalized clinicId column is needed on this table.
+model ServiceRedemption {
+  id                  String   @id @default(uuid()) @db.Uuid
+  memberId            String   @db.Uuid
+  member              Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  // Canonical service identifier from src/lib/pricing/types.ts ServiceKey
+  // (annual-exam, core-vaccines, dental-cleaning, heartworm-prevention,
+  // flea-tick-prevention). Stored as string, not a Postgres enum, so adding
+  // a new service key in v2 doesn't require a migration.
+  serviceKey          String
+  // First instant (UTC) of the Stripe billing period the redemption belongs
+  // to. Computed as `currentPeriodEnd - 1 month` at the point of toggle.
+  // Reset semantics are implicit: next period = new row allowed because the
+  // unique key differs.
+  billingPeriodStart  DateTime @db.Timestamptz(3)
+  redeemedAt          DateTime @default(now()) @db.Timestamptz(3)
+  // Better-Auth User id of the staffer who toggled (nullable so we can seed
+  // test rows or attribute to system later without a data migration).
+  redeemedByUserId    String?
+  // Optimistic lock counter. Bumped on every UPDATE. Not used for INSERTs
+  // (uniqueness handles the insert-race case) — only matters if we ever add
+  // a mutable column to this row (e.g. notes). Kept for forward-compat.
+  version             Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([memberId, serviceKey, billingPeriodStart]) // IDEMPOTENCY ANCHOR
+  @@index([memberId])
 }
