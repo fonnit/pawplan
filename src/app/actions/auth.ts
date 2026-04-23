@@ -79,6 +79,12 @@ export async function signUpClinicOwner(raw: {
     }
     userId = maybeUser.id;
 
+    // Clinic INSERT does not need withClinic — the Clinic RLS policy is
+    // permissive when `app.current_clinic_id` is unset (bootstrap mode), and
+    // strict when set. Signup runs in bootstrap mode. Dashboard layout also
+    // uses bootstrap mode to resolve the caller's clinic by ownerUserId
+    // (which is already UNIQUE + session-bound — tenant scope is enforced at
+    // the app layer for Clinic lookups).
     try {
       await prisma.clinic.create({
         data: {
