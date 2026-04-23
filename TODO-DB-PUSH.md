@@ -23,7 +23,26 @@ EOF
 
 Expect: `Account`, `Clinic`, `Plan`, `PlanTier`, `Session`, `User`, `Verification`.
 
-## 2. Apply RLS policies (Plan 01-03, Task 2)
+## 2a. Provision the restricted app role (Plan 01-03, T-01-03-03)
+
+```bash
+pnpm prisma db execute --file prisma/sql/000-roles.sql
+```
+
+Creates `pawplan_app` as `NOBYPASSRLS` + grants CRUD on public schema. Run
+after `db push` so the `ALL TABLES IN SCHEMA public` GRANT picks up every
+created table. Idempotent — safe to re-run.
+
+Verifies the role cannot bypass RLS:
+
+```bash
+pnpm prisma db execute --stdin <<'EOF'
+SELECT rolname, rolbypassrls FROM pg_roles WHERE rolname = 'pawplan_app';
+EOF
+# Expect: pawplan_app | f
+```
+
+## 2b. Apply RLS policies (Plan 01-03, Task 2)
 
 ```bash
 pnpm prisma db execute --file prisma/sql/001-rls-policies.sql
