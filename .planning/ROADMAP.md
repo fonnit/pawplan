@@ -68,7 +68,13 @@ Plans:
   3. The public page exposes only the published plan + branding (never draft plans or member data), reading from a dedicated `v_public_clinic_plans` view, and a k6 load test of 500 req/s for 60s holds p95 latency under 500ms.
   4. A clinic owner can edit plan prices after publish; a new Stripe Price is created on the same Product, existing subscriptions stay on the legacy Price, and the edit UI states explicitly that the new price applies to new enrollments only.
   5. The builder display shows retail value, monthly fee, clinic gross per enrolled pet per year, break-even member count, Stripe processing estimate, and the 10% platform fee as explicit line items — with the same pure function running client-side (preview) and server-side (canonical).
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Publish schema (Plan.status, PlanTier Stripe IDs, stripePriceHistory) + v_public_clinic_plans view + canonical publish types (PUB-03, PUB-04, PUB-05, BLDR-08)
+- [ ] 03-02-PLAN.md — publishPlan server action + Stripe Product/Price creation on platform account + revalidateTag + Vitest mocked suite (PUB-03, PUB-04, MATH-03)
+- [ ] 03-03-PLAN.md — Public /[slug]/enroll page (ISR-cached, mobile-responsive, branded) + tagged cache loader + k6 load test (PUB-05, PUB-06, BLDR-07)
+- [ ] 03-04-PLAN.md — renameTiers + updatePlanPrices server actions + dashboard Publish button + PublishedPlanPanel + EditTierPricesDialog + BreakEvenLineItems (BLDR-06, BLDR-08, MATH-02, MATH-04, MATH-05)
 **UI hint**: yes
 
 ### Phase 4: Checkout + Subscription Lifecycle
