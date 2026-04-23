@@ -1,0 +1,138 @@
+'use server';
+
+import { headers } from 'next/headers';
+import { revalidatePath } from 'next/cache';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+import { withClinic } from '@/lib/tenant';
+import { cancelSubscriptionAtPeriodEnd } from '@/lib/stripe/cancel-subscription';
+import type { MemberStatus } from '@/lib/stripe/types';
+
+/**
+ * Members dashboard server actions (DASH-03, DASH-05).
+ *
+ * All reads + writes go through `withClinic()` so RLS enforces tenant
+ * isolation at the DB layer. The response shape deliberately OMITS
+ * `stripeCustomerId` and `stripeSubscriptionId` so the dashboard client
+ * bundle never ships those — minimizes PII surface (T-04-04-02).
+ */
+
+// Local helper mirroring the pattern in src/app/actions/plans.ts.
+async function requireClinic(): Promise<{ clinicId: string; userId: string }> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) throw new Error('UNAUTHENTICATED');
+  const clinic = await prisma.clinic.findUnique({
+    where: { ownerUserId: session.user.id },
+  });
+  if (!clinic) throw new Error('NO_CLINIC');
+  return { clinicId: clinic.id, userId: session.user.id };
+}
+
+export interface MemberRow {
+  id: string;
+  petName: string;
+  species: string;
+  ownerEmail: string;
+  tierName: string;
+  status: MemberStatus;
+  enrolledAt: Date;
+  currentPeriodEnd: Date | null;
+  paymentFailedAt: Date | null;
+  canceledAt: Date | null;
+}
+
+export async function listMembers(): Promise<MemberRow[]> {
+  const { clinicId } = await requireClinic();
+
+  return withClinic(clinicId, async (tx) => {
+    const rows = await tx.member.findMany({
+      select: {
+        id: true,
+        petName: true,
+        species: true,
+        ownerEmail: true,
+        status: true,
+        enrolledAt: true,
+        currentPeriodEnd: true,
+        paymentFailedAt: true,
+        canceledAt: true,
+        planTier: { select: { tierName: true } },
+      },
+      orderBy: [
+        { paymentFailedAt: { sort: 'desc', nulls: 'last' } },
+        { enrolledAt: 'desc' },
+      ],
+    });
+
+    return rows.map((r) => ({
+      id: r.id,
+      petName: r.petName,
+      species: r.species,
+      ownerEmail: r.ownerEmail,
+      tierName: r.planTier.tierName,
+      status: r.status as MemberStatus,
+      enrolledAt: r.enrolledAt,
+      currentPeriodEnd: r.currentPeriodEnd,
+      paymentFailedAt: r.paymentFailedAt,
+      canceledAt: r.canceledAt,
+    }));
+  });
+}
+
+export type CancelMemberResult =
+  | { ok: true; canceledAt: Date }
+  | {
+      ok: false;
+      code: 'not_found' | 'already_canceled' | 'stripe_error';
+      error: string;
+    };
+
+export async function cancelMember(memberId: string): Promise<CancelMemberResult> {
+  const { clinicId } = await requireClinic();
+
+  // Pre-flight outside the Stripe call. Cross-tenant memberIds return null
+  // because the RLS-scoped tx cannot see them (T-04-04-01).
+  const member = await withClinic(clinicId, async (tx) =>
+    tx.member.findUnique({
+      where: { id: memberId },
+      select: {
+        id: true,
+        stripeSubscriptionId: true,
+        canceledAt: true,
+        status: true,
+      },
+    }),
+  );
+
+  if (!member) return { ok: false, code: 'not_found', error: 'Member not found' };
+  if (member.canceledAt) {
+    return {
+      ok: false,
+      code: 'already_canceled',
+      error: 'This member is already scheduled for cancellation.',
+    };
+  }
+
+  try {
+    await cancelSubscriptionAtPeriodEnd(member.stripeSubscriptionId);
+  } catch (err) {
+    console.error('[cancelMember] stripe failed', err);
+    return {
+      ok: false,
+      code: 'stripe_error',
+      error:
+        'We could not cancel this subscription with Stripe. Please try again.',
+    };
+  }
+
+  const canceledAt = new Date();
+  await withClinic(clinicId, async (tx) => {
+    await tx.member.update({
+      where: { id: memberId },
+      data: { canceledAt },
+    });
+  });
+
+  revalidatePath('/dashboard/members');
+  return { ok: true, canceledAt };
+}
