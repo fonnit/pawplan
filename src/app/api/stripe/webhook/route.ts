@@ -7,6 +7,7 @@ import {
   WebhookVerificationError,
 } from '@/lib/stripe/webhook';
 import { persistAccountSnapshot, accountToSnapshot } from '@/lib/stripe/connect';
+import { WEBHOOK_HANDLERS } from '@/lib/stripe/webhook-handlers';
 
 /**
  * Stripe webhook endpoint — single route for BOTH platform events AND
@@ -68,8 +69,15 @@ export async function POST(req: Request): Promise<Response> {
 }
 
 /**
- * Dispatch table — Phase 2 only handles account.updated. Other event
- * types are logged in StripeEvent (for future phases) and acknowledged.
+ * Dispatch table — Phase 2 handles account.updated inline because it writes
+ * Connect capability state that the publish gate depends on (synchronous
+ * critical path). Phase 4 adds subscription-lifecycle handlers via a lookup
+ * table (WEBHOOK_HANDLERS) so new event types are a one-line addition in
+ * src/lib/stripe/webhook-handlers/index.ts.
+ *
+ * Unknown types are absent from both the switch and the handler map; the
+ * event is still persisted to StripeEvent (by recordEvent) for forensic
+ * history when handlers land in later phases.
  */
 async function dispatch(event: Stripe.Event): Promise<void> {
   switch (event.type) {
@@ -78,10 +86,13 @@ async function dispatch(event: Stripe.Event): Promise<void> {
       await persistAccountSnapshot(accountToSnapshot(account), 'webhook');
       return;
     }
-    // Phase 3 will add: checkout.session.completed, invoice.paid, etc.
-    default:
-      // No-op for unknown types in Phase 2. Event is still persisted to
-      // StripeEvent so we have forensic history when handlers land.
+    default: {
+      const handler = WEBHOOK_HANDLERS[event.type];
+      if (handler) {
+        await handler(event);
+        return;
+      }
       return;
+    }
   }
 }
