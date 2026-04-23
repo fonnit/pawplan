@@ -87,16 +87,6 @@ export async function persistAccountSnapshot(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _source: 'webhook' | 'direct' = 'webhook',
 ): Promise<{ updated: boolean; clinicId: string | null }> {
-  const clinic = await prisma.clinic.findUnique({
-    where: { stripeAccountId: snapshot.stripeAccountId },
-    select: { id: true },
-  });
-  if (!clinic) {
-    // Event arrived before we linked the account (rare: create-account
-    // webhook race) — will reconcile on next event or on dashboard visit.
-    return { updated: false, clinicId: null };
-  }
-
   const state: OnboardingState = deriveOnboardingState({
     stripeAccountId: snapshot.stripeAccountId,
     chargesEnabled: snapshot.chargesEnabled,
@@ -106,8 +96,12 @@ export async function persistAccountSnapshot(
     requirementsCurrentlyDue: snapshot.requirements.currently_due,
   });
 
-  await prisma.clinic.update({
-    where: { id: clinic.id },
+  // Single round-trip via updateMany — we don't need the clinic.id back
+  // (no caller reads it in Phase 2) and updateMany is a no-op rather than
+  // a throw when no row matches, which is the right behavior for the
+  // "event arrived before we linked the account" race.
+  const result = await prisma.clinic.updateMany({
+    where: { stripeAccountId: snapshot.stripeAccountId },
     data: {
       stripeChargesEnabled: snapshot.chargesEnabled,
       stripePayoutsEnabled: snapshot.payoutsEnabled,
@@ -119,7 +113,11 @@ export async function persistAccountSnapshot(
     },
   });
 
-  return { updated: true, clinicId: clinic.id };
+  // clinicId is no longer returned — Phase 2 has no caller that reads it.
+  // If Phase 3 needs it we can add a follow-up findUnique; until then,
+  // keeping the shape `{ updated, clinicId: null }` avoids surprising
+  // any downstream wiring that destructures the field.
+  return { updated: result.count > 0, clinicId: null };
 }
 
 /**
