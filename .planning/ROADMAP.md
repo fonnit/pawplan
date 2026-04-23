@@ -71,10 +71,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Publish schema (Plan.status, PlanTier Stripe IDs, stripePriceHistory) + v_public_clinic_plans view + canonical publish types (PUB-03, PUB-04, PUB-05, BLDR-08)
-- [ ] 03-02-PLAN.md — publishPlan server action + Stripe Product/Price creation on platform account + revalidateTag + Vitest mocked suite (PUB-03, PUB-04, MATH-03)
-- [ ] 03-03-PLAN.md — Public /[slug]/enroll page (ISR-cached, mobile-responsive, branded) + tagged cache loader + k6 load test (PUB-05, PUB-06, BLDR-07)
-- [ ] 03-04-PLAN.md — renameTiers + updatePlanPrices server actions + dashboard Publish button + PublishedPlanPanel + EditTierPricesDialog + BreakEvenLineItems (BLDR-06, BLDR-08, MATH-02, MATH-04, MATH-05)
+- [x] 03-01-PLAN.md — Publish schema (Plan.status, PlanTier Stripe IDs, stripePriceHistory) + v_public_clinic_plans view + canonical publish types (PUB-03, PUB-04, PUB-05, BLDR-08)
+- [x] 03-02-PLAN.md — publishPlan server action + Stripe Product/Price creation on platform account + revalidateTag + Vitest mocked suite (PUB-03, PUB-04, MATH-03)
+- [x] 03-03-PLAN.md — Public /[slug]/enroll page (ISR-cached, mobile-responsive, branded) + tagged cache loader + k6 load test (PUB-05, PUB-06) — BLDR-07 deferred to Phase 4 (collected inside Stripe Checkout)
+- [x] 03-04-PLAN.md — renameTiers + updatePlanPrices server actions + dashboard Publish button + PublishedPlanPanel + EditTierPricesDialog + BreakEvenLineItems (BLDR-06, BLDR-08, MATH-02, MATH-04, MATH-05)
 **UI hint**: yes
 
 ### Phase 4: Checkout + Subscription Lifecycle

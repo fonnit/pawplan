@@ -24,10 +24,10 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 ### Break-Even Engine (`MATH`)
 
 - [x] **MATH-01**: Pure function computes per-tier break-even math given 8 builder inputs + 10% platform fee
-- [ ] **MATH-02**: Math runs client-side for live recompute during builder edits
-- [ ] **MATH-03**: Math runs server-side at Publish for canonical pricing (same file as MATH-02)
-- [ ] **MATH-04**: Line-by-line display: retail value bundled, monthly fee, clinic gross per enrolled pet per year, break-even member count
-- [ ] **MATH-05**: Line items include all fees (Stripe processing estimate + 10% platform fee) so the number is unsurprising
+- [x] **MATH-02**: Math runs client-side for live recompute during builder edits
+- [x] **MATH-03**: Math runs server-side at Publish for canonical pricing (same file as MATH-02)
+- [x] **MATH-04**: Line-by-line display: retail value bundled, monthly fee, clinic gross per enrolled pet per year, break-even member count
+- [x] **MATH-05**: Line items include all fees (Stripe processing estimate + 10% platform fee) so the number is unsurprising
 
 ### Plan Builder (`BLDR`)
 
@@ -36,18 +36,18 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 - [ ] **BLDR-03**: Live break-even preview updates on every input change (MATH-02)
 - [ ] **BLDR-04**: Owner can return to the builder post-publish to edit prices (BLDR-08) without losing member data
 - [ ] **BLDR-05**: Draft plans persist to Postgres — never ephemeral
-- [ ] **BLDR-06**: Owner edits tier names post-draft before publishing
-- [ ] **BLDR-07**: Basic member record fields captured at enrollment: pet name, species, owner email, plan start date
-- [ ] **BLDR-08**: Post-publish pricing edits use Stripe's new-Price-on-existing-Product pattern — existing subscriptions unaffected
+- [x] **BLDR-06**: Owner edits tier names post-draft before publishing
+- [ ] **BLDR-07**: Basic member record fields captured at enrollment: pet name, species, owner email, plan start date _(deferred to Phase 4 — Stripe Checkout custom fields)_
+- [x] **BLDR-08**: Post-publish pricing edits use Stripe's new-Price-on-existing-Product pattern — existing subscriptions unaffected
 
 ### Stripe Connect + Publish (`PUB`)
 
 - [x] **PUB-01**: Clinic owner completes Stripe Connect Express onboarding during setup
 - [x] **PUB-02**: Publish is gated on `charges_enabled && payouts_enabled && !requirements.disabled_reason` from Stripe `account.updated` webhook
-- [ ] **PUB-03**: Publish action creates Stripe Product + Price per tier on the platform account
-- [ ] **PUB-04**: Publish generates unique public enrollment URL `pawplan.app/{clinic-slug}/enroll`
-- [ ] **PUB-05**: Public enrollment page renders server-side, mobile-responsive, shows tiers side-by-side with clinic name, logo, accent color
-- [ ] **PUB-06**: Public page survives high-traffic newsletter-blast spikes (ISR or equivalent caching)
+- [x] **PUB-03**: Publish action creates Stripe Product + Price per tier on the platform account
+- [x] **PUB-04**: Publish generates unique public enrollment URL `pawplan.app/{clinic-slug}/enroll`
+- [x] **PUB-05**: Public enrollment page renders server-side, mobile-responsive, shows tiers side-by-side with clinic name, logo, accent color
+- [x] **PUB-06**: Public page survives high-traffic newsletter-blast spikes (ISR or equivalent caching)
 
 ### Checkout + Billing (`PAY`)
 
@@ -115,24 +115,24 @@ Every v1 requirement maps to exactly one phase in ROADMAP.md. Coverage: **42/42*
 | FOUND-05 | Phase 1 | Complete |
 | FOUND-06 | Phase 1 | Complete |
 | MATH-01 | Phase 1 | Complete |
-| MATH-02 | Phase 3 | Pending |
-| MATH-03 | Phase 3 | Pending |
-| MATH-04 | Phase 3 | Pending |
-| MATH-05 | Phase 3 | Pending |
+| MATH-02 | Phase 3 | Complete |
+| MATH-03 | Phase 3 | Complete |
+| MATH-04 | Phase 3 | Complete |
+| MATH-05 | Phase 3 | Complete |
 | BLDR-01 | Phase 1 | Pending |
 | BLDR-02 | Phase 1 | Pending |
 | BLDR-03 | Phase 1 | Pending |
 | BLDR-04 | Phase 1 | Pending |
 | BLDR-05 | Phase 1 | Pending |
-| BLDR-06 | Phase 3 | Pending |
-| BLDR-07 | Phase 3 | Pending |
-| BLDR-08 | Phase 3 | Pending |
+| BLDR-06 | Phase 3 | Complete |
+| BLDR-07 | Phase 3 | Deferred → Phase 4 |
+| BLDR-08 | Phase 3 | Complete |
 | PUB-01 | Phase 2 | Complete |
 | PUB-02 | Phase 2 | Complete |
-| PUB-03 | Phase 3 | Pending |
-| PUB-04 | Phase 3 | Pending |
-| PUB-05 | Phase 3 | Pending |
-| PUB-06 | Phase 3 | Pending |
+| PUB-03 | Phase 3 | Complete |
+| PUB-04 | Phase 3 | Complete |
+| PUB-05 | Phase 3 | Complete |
+| PUB-06 | Phase 3 | Complete (k6 script committed; full load-run operator-driven pre-demo) |
 | PAY-01 | Phase 4 | Pending |
 | PAY-02 | Phase 4 | Pending |
 | PAY-03 | Phase 4 | Pending |

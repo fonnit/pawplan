@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: phase-2-complete
-stopped_at: Completed 02-03-PLAN.md (Connect routes + dashboard UI) — Phase 2 done
-last_updated: "2026-04-23T11:45:00.000Z"
+status: phase-3-complete
+stopped_at: Completed 03-04-PLAN.md — Phase 3 (Publish + public enrollment page) done
+last_updated: "2026-04-23T12:30:00.000Z"
 last_activity: 2026-04-23
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
+  completed_phases: 3
+  total_plans: 12
+  completed_plans: 12
   percent: 100
 ---
 
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** A clinic owner publishes pricing and lands their first paying member in the same session.
-**Current focus:** Phase 2 — Stripe Connect onboarding (COMPLETE) → Phase 3 (Publish + plan products)
+**Current focus:** Phase 3 — Publish + Public Enrollment Page (COMPLETE) → Phase 4 (Stripe Checkout + destination charges)
 
 ## Current Position
 
-Phase: 2 of 6 (Stripe Connect) — COMPLETE
-Plan: 3 of 3 in current phase
-Status: Phase 2 shipped — ready for Phase 3 (Publish + plan product/price creation)
+Phase: 3 of 6 (Publish + Public Enrollment Page) — COMPLETE
+Plan: 4 of 4 in current phase
+Status: Phase 3 shipped — ready for Phase 4 (Stripe Checkout wiring, BLDR-07 collection inside Checkout)
 Last activity: 2026-04-23
 
-Progress: [████░░░░░░] Phase 2 of 6
+Progress: [██████░░░░] Phase 3 of 6
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 8 (Phase 1: 5, Phase 2: 3)
-- Average duration: ~13m / plan (Phase 2 wave: ~11m avg)
-- Total execution time: ~1.7 hours (across both phases)
+- Total plans completed: 12 (Phase 1: 5, Phase 2: 3, Phase 3: 4)
+- Average duration: ~11m / plan (Phase 3 wave: ~9m avg)
+- Total execution time: ~2.3 hours (across three phases)
 
 **By Phase:**
 
@@ -46,11 +46,12 @@ Progress: [████░░░░░░] Phase 2 of 6
 |-------|-------|---------|----------|
 | 01    | 5     | ~80m    | 16m      |
 | 02    | 3     | ~33m    | 11m      |
+| 03    | 4     | ~37m    | 9m       |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-05, 02-01, 02-02, 02-03 (fastest Phase 2 plan was 02-02 at ~10m)
-- Trend: accelerating — Phase 2 is ~30% faster per plan than Phase 1, consistent with compounding familiarity (Prisma schema + RLS patterns reused, no new stack).
+- Last 5 plans: 02-03, 03-01, 03-02, 03-03, 03-04 (fastest Phase 3 plan was 03-01 at ~6m).
+- Trend: still accelerating — Phase 3 avg (~9m) is ~18% faster than Phase 2 (~11m); schema + RLS + server-action patterns are now mechanical.
 
 *Updated after each plan completion*
 | Phase 01 P01 | 10m | 2 tasks | 27 files |
@@ -61,6 +62,10 @@ Progress: [████░░░░░░] Phase 2 of 6
 | Phase 02 P01 | 8m  | 2 tasks | 3 files  |
 | Phase 02 P02 | 10m | 2 tasks | 5 files  |
 | Phase 02 P03 | 15m | 2 tasks | 11 files |
+| Phase 03 P01 | 6m  | 2 tasks | 4 files  |
+| Phase 03 P02 | 9m  | 2 tasks | 3 files  |
+| Phase 03 P03 | 8m  | 2 tasks | 10 files |
+| Phase 03 P04 | 14m | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -76,12 +81,22 @@ Recent decisions affecting current work:
 - Connect pattern: **Express accounts**, single webhook endpoint handles platform + connected-account events (locked 2026-04-23)
 - Publish gate: **`isPublishReady(snapshot)` = chargesEnabled && payoutsEnabled && !disabledReason** — canonical predicate in `src/lib/stripe/types.ts` (locked 2026-04-23)
 - Webhook idempotency: **PK collision on `StripeEvent.id`** (= Stripe `event.id`) + Prisma P2002 string-code detection (locked 2026-04-23)
+- Public read surface: **SECURITY DEFINER view `v_public_clinic_plans`** — explicit column list; enrollment page NEVER reads Plan/PlanTier directly (locked 2026-04-23, Phase 3)
+- Publish server-side math: **re-read Plan.builderInputs + re-run `computeBreakEven`** at publishPlan time. Client-supplied monthly fees are ignored entirely (locked 2026-04-23, Phase 3 MATH-03)
+- Price-edit pattern: **new Stripe Price on the SAME Stripe Product** (old Price stays active for existing subs). Append-only `stripePriceHistory` JSON with `replacedAt` stamping (locked 2026-04-23, Phase 3 BLDR-08)
+- Stripe idempotency keys: publish uses `publish:{planId}:{tierId}:product` + `publish:{planId}:{tierId}:price:v1:{cents}`; edits use `price-edit:{planId}:{tierId}:v{N}:{cents}` — disjoint namespaces (locked 2026-04-23, Phase 3)
+- revalidateTag signature: Next.js 16 requires `revalidateTag(tag, profile)`; PawPlan passes `'default'` as the profile (locked 2026-04-23, Phase 3)
+- BLDR-07 (pet / owner collection): **deferred to Phase 4** — collected inside Stripe Checkout's hosted form, not on /[slug]/enroll (locked 2026-04-23, Phase 3)
 
 ### Pending Todos
 
-**Phase 3 kickoff pre-reqs:**
-- Daniel to run `stripe listen --forward-to localhost:3000/api/stripe/webhook` and copy real `whsec_…` into `.env.local` (replaces placeholder). Blocks manual end-to-end verification of webhook reception; does NOT block Phase 3 plan authoring.
-- Production (Neon) deploy needs a non-owner app role equivalent to `pawplan_app` so RLS FORCE is honestly enforced under a non-BYPASSRLS connection.
+**Phase 4 (Stripe Checkout) kickoff pre-reqs:**
+- BLDR-07 (pet name / species / owner email collection) — wire Stripe Checkout's `customer_creation` + `custom_fields` on a Checkout Session created by the `/[slug]/enroll` CTA (currently a `toast.info` stub). Redirect URL should be `/checkout?session_id=…` then fall through to Stripe's hosted form.
+- Stripe Checkout subscription mode with `transfer_data.destination = clinic.stripeAccountId` + `application_fee_percent = 10` so destination charges + 10% platform fee fire on every invoice (closes MATH-03 end-to-end).
+- Daniel to run `stripe listen --forward-to localhost:3000/api/stripe/webhook` before Phase 4 manual verification (carry-over from Phase 2).
+- Production (Neon) deploy needs a non-owner app role equivalent to `pawplan_app` so RLS FORCE is honestly enforced under a non-BYPASSRLS connection (carry-over from Phase 2).
+- Operator-run PUB-06 load test (`k6 run tests/load/enroll-page.k6.js`) against a staged published clinic before demo — script committed, not executed in CI.
+- Phase 3 carry-over: `src/lib/tenant.test.ts` + `src/app/actions/publish.test.ts` use the superuser pool for fixtures because strict RLS blocks pawplan_app INSERTs into Plan/PlanTier. Consider a `withSuperuser()` helper or a dedicated fixture seeder to DRY this up in Phase 4+.
 
 ### Blockers/Concerns
 
@@ -91,6 +106,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-04-23T11:45:00.000Z
-Stopped at: Completed 02-03-PLAN.md (Connect routes + dashboard UI) — Phase 2 done
+Last session: 2026-04-23T12:30:00.000Z
+Stopped at: Completed 03-04-PLAN.md — Phase 3 (Publish + public enrollment page) done, ready for Phase 4 Checkout wiring
 Resume file: None
