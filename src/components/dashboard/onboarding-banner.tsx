@@ -28,13 +28,21 @@ export function OnboardingBanner({ state, requirements, blockedReason }: Props) 
 
   async function handleResume() {
     setLoading(true);
-    const res = await fetch('/api/stripe/connect/refresh', { method: 'POST' });
-    if (!res.ok) {
+    try {
+      const res = await fetch('/api/stripe/connect/refresh', { method: 'POST' });
+      if (!res.ok) return;
+      const { url } = (await res.json()) as { url: string };
+      window.location.href = url;
+    } catch {
+      // Network failure / JSON parse error — swallow so the user can
+      // retry. The finally block clears the loading flag so the button
+      // doesn't stay wedged on "Loading…" forever.
+    } finally {
+      // On success this runs after window.location.href is assigned,
+      // which is non-blocking; the component unmounts on navigation and
+      // setState-on-unmounted is a no-op in React 19.
       setLoading(false);
-      return;
     }
-    const { url } = (await res.json()) as { url: string };
-    window.location.href = url;
   }
 
   return (
