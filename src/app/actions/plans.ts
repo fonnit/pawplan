@@ -4,10 +4,16 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { withClinic } from '@/lib/tenant';
 import { PlanBuilderInputsSchema } from '@/lib/pricing/schema';
+import { computeBreakEven } from '@/lib/pricing/breakEven';
 import type { PlanBuilderInputs } from '@/lib/pricing/types';
 import { headers } from 'next/headers';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
+
+// Convert dollars to cents — defensive round to avoid floating-point drift.
+function usdToCents(usd: number): number {
+  return Math.round(usd * 100);
+}
 
 // ME-01: Zod uuid() guard for client-supplied plan ids. A malformed uuid
 // string bubbles up as a Postgres "invalid input syntax for uuid" error
@@ -90,26 +96,56 @@ export async function saveDraftPlan(input: {
     return { ok: false, error: 'Invalid planId' };
   }
 
+  // Compute canonical tiers server-side from the pure function. Client's
+  // live preview uses the exact same module, but we re-derive here so the
+  // DB rows are never trusted from user-submitted numbers (T-03-02-01).
+  const breakEven = computeBreakEven(data);
+
   const result = await withClinic(clinic.id, async (tx) => {
-    if (input.planId) {
-      return tx.plan.update({
-        where: { id: input.planId },
-        data: {
-          builderInputs: data as Prisma.InputJsonValue,
-          monthlyProgramOverheadUsd: data.monthlyProgramOverheadUsd ?? 500,
-          tierCount: data.tierCount,
-        },
+    const plan = input.planId
+      ? await tx.plan.update({
+          where: { id: input.planId },
+          data: {
+            builderInputs: data as Prisma.InputJsonValue,
+            monthlyProgramOverheadUsd: data.monthlyProgramOverheadUsd ?? 500,
+            tierCount: data.tierCount,
+          },
+        })
+      : await tx.plan.create({
+          data: {
+            clinicId: clinic.id,
+            status: 'draft',
+            builderInputs: data as Prisma.InputJsonValue,
+            monthlyProgramOverheadUsd: data.monthlyProgramOverheadUsd ?? 500,
+            tierCount: data.tierCount,
+          },
+        });
+
+    // Replace tier rows on every draft save. Draft tiers carry no Stripe
+    // IDs — those are populated at publish time by the publishPlan action.
+    // We delete-and-recreate so tier-count changes (2↔3) and input edits
+    // flow cleanly without stale rows.
+    if (plan.status === 'draft') {
+      await tx.planTier.deleteMany({ where: { planId: plan.id } });
+      await tx.planTier.createMany({
+        data: breakEven.tiers.map((t, i) => ({
+          planId: plan.id,
+          clinicId: clinic.id,
+          tierKey: t.tierKey,
+          tierName: t.tierName,
+          includedServices: t.includedServices as unknown as Prisma.InputJsonValue,
+          retailValueBundledCents: usdToCents(t.lineItems.retailValueBundledUsd),
+          monthlyFeeCents: usdToCents(t.lineItems.monthlyFeeUsd),
+          stripeFeePerChargeCents: usdToCents(t.lineItems.stripeFeePerChargeUsd),
+          platformFeePerChargeCents: usdToCents(t.lineItems.platformFeePerChargeUsd),
+          clinicGrossPerPetPerYearCents: usdToCents(t.lineItems.clinicGrossPerPetPerYearUsd),
+          breakEvenMembers: t.lineItems.breakEvenMembers,
+          ordering: i,
+        })),
       });
     }
-    return tx.plan.create({
-      data: {
-        clinicId: clinic.id,
-        status: 'draft',
-        builderInputs: data as Prisma.InputJsonValue,
-        monthlyProgramOverheadUsd: data.monthlyProgramOverheadUsd ?? 500,
-        tierCount: data.tierCount,
-      },
-    });
+
+    return plan;
   });
 
   return { ok: true, planId: result.id, updatedAt: result.updatedAt };
