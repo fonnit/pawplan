@@ -259,6 +259,12 @@ model Member {
   paymentFailedAt  DateTime? // set by invoice.payment_failed (PAY-05, DASH-03)
   canceledAt       DateTime? // set optimistically by owner click + confirmed by webhook (DASH-05)
 
+  // Phase 5 NOTIF — idempotency stamps for the two async jobs. The worker
+  // treats a non-null value as "already sent, skip." This guards against
+  // pg-boss retry-after-success edge cases + operator manual re-enqueues.
+  welcomePacketSentAt DateTime? // set by send-welcome-packet handler on 2xx
+  ownerNotifiedAt     DateTime? // set by notify-owner-new-enrollment handler on 2xx
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
