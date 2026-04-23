@@ -122,3 +122,43 @@ export function computeBreakEven(inputs: PlanBuilderInputs): BreakEvenResult {
     },
   };
 }
+
+// ─── Phase 3 BLDR-08 price-edit helper ──────────────────────────────────────
+// Derive fee + gross + break-even cents for a SINGLE tier given a new
+// monthly-fee amount (cents). Used by updatePlanPrices to keep PlanTier
+// derived columns in sync with Stripe's new Price amount.
+//
+// Mirrors the per-tier arithmetic inside computeTier() but skips the
+// retail-value + service-list derivation — those stay unchanged on a
+// price-only edit.
+
+export interface TierDerivedCents {
+  stripeFeePerChargeCents: number;
+  platformFeePerChargeCents: number;
+  clinicGrossPerPetPerYearCents: number;
+  breakEvenMembers: number;
+}
+
+export function deriveTierFromMonthlyFeeCents(args: {
+  monthlyFeeCents: number;
+  monthlyProgramOverheadUsd: number;
+}): TierDerivedCents {
+  const monthlyFeeUsd = args.monthlyFeeCents / 100;
+  const stripeFeeUsd = round2(
+    monthlyFeeUsd * (STRIPE_FEE_PCT / 100) + STRIPE_FEE_FIXED_CENTS / 100,
+  );
+  const platformFeeUsd = round2(monthlyFeeUsd * (PLATFORM_FEE_PCT / 100));
+  const grossUsd = round2((monthlyFeeUsd - stripeFeeUsd - platformFeeUsd) * 12);
+  const breakEvenMembers =
+    args.monthlyProgramOverheadUsd === 0
+      ? 0
+      : grossUsd > 0
+        ? Math.ceil((args.monthlyProgramOverheadUsd * 12) / grossUsd)
+        : Number.POSITIVE_INFINITY;
+  return {
+    stripeFeePerChargeCents: Math.round(stripeFeeUsd * 100),
+    platformFeePerChargeCents: Math.round(platformFeeUsd * 100),
+    clinicGrossPerPetPerYearCents: Math.round(grossUsd * 100),
+    breakEvenMembers,
+  };
+}

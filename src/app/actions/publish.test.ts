@@ -49,7 +49,7 @@ vi.mock('next/cache', () => ({
 // After mocks — real imports:
 import { prisma } from '@/lib/db';
 import { withClinic } from '@/lib/tenant';
-import { publishPlan } from './publish';
+import { publishPlan, renameTiers, updatePlanPrices } from './publish';
 
 // --- Fixtures ----------------------------------------------------------------
 
@@ -126,6 +126,12 @@ async function createDraftPlan(
     tierCount: 2 | 3;
     status?: 'draft' | 'published';
     seed?: TierSeed[];
+    /**
+     * When true, populates stripeProductId / stripePriceId / stripePriceHistory
+     * on every seeded tier so updatePlanPrices-style tests have Stripe context
+     * to edit against. Only relevant for status='published'.
+     */
+    withStripeIds?: boolean;
   },
 ) {
   const status = opts.status ?? 'draft';
@@ -141,15 +147,36 @@ async function createDraftPlan(
   );
   const planId = planResult.rows[0]!.id;
   for (const t of seed) {
+    const stripeProductId = opts.withStripeIds
+      ? `prod_${randomUUID().replace(/-/g, '').slice(0, 14)}`
+      : null;
+    const stripePriceId = opts.withStripeIds
+      ? `price_${randomUUID().replace(/-/g, '').slice(0, 14)}`
+      : null;
+    const initialCents = 1800;
+    const history = opts.withStripeIds
+      ? [
+          {
+            priceId: stripePriceId,
+            unitAmountCents: initialCents,
+            createdAt: new Date().toISOString(),
+            replacedAt: null,
+          },
+        ]
+      : null;
+    const publishedAt = status === 'published' ? new Date() : null;
     await superuserPool.query(
       `INSERT INTO "PlanTier"(id, "planId", "clinicId", "tierKey", "tierName",
          "includedServices", "retailValueBundledCents", "monthlyFeeCents",
          "stripeFeePerChargeCents", "platformFeePerChargeCents",
-         "clinicGrossPerPetPerYearCents", "breakEvenMembers", ordering, "updatedAt")
+         "clinicGrossPerPetPerYearCents", "breakEvenMembers", ordering,
+         "stripeProductId", "stripePriceId", "stripePriceHistory", "publishedAt",
+         "updatedAt")
        VALUES (gen_random_uuid(), $1, $2, $3, $4,
-         $5::jsonb, 12000, 1800,
+         $5::jsonb, 12000, $6,
          82, 180,
-         18456, 4, $6, now())`,
+         18456, 4, $7,
+         $8, $9, $10::jsonb, $11, now())`,
       [
         planId,
         clinicId,
@@ -168,7 +195,12 @@ async function createDraftPlan(
                   'flea-tick-prevention',
                 ],
         ),
+        initialCents,
         t.ordering,
+        stripeProductId,
+        stripePriceId,
+        history ? JSON.stringify(history) : null,
+        publishedAt,
       ],
     );
   }
@@ -182,17 +214,18 @@ async function cleanupClinic(clinicId: string, userId: string) {
   await superuserPool.query(`DELETE FROM "User" WHERE id = $1`, [userId]);
 }
 
+// Single top-level teardown — multiple describes below share `superuserPool`
+// and `prisma`. Closing them in the first describe's afterAll would kill
+// connections before the later describes run.
+beforeAll(async () => {
+  await superuserPool.query('SELECT 1');
+});
+afterAll(async () => {
+  await superuserPool.end();
+  await prisma.$disconnect();
+});
+
 describe('publishPlan', () => {
-  beforeAll(async () => {
-    // Warm a connection; fail fast if DB unreachable.
-    await superuserPool.query('SELECT 1');
-  });
-
-  afterAll(async () => {
-    await superuserPool.end();
-    await prisma.$disconnect();
-  });
-
   beforeEach(() => {
     stripeMocks.productsCreate.mockReset();
     stripeMocks.pricesCreate.mockReset();
@@ -305,6 +338,198 @@ describe('publishPlan', () => {
       );
       expect(reloaded?.status).toBe('draft');
       expect(reloaded?.publishedAt).toBeNull();
+    } finally {
+      await cleanupClinic(clinicId, userId);
+    }
+  });
+});
+
+describe('renameTiers', () => {
+  beforeEach(() => {
+    stripeMocks.productsCreate.mockReset();
+    stripeMocks.pricesCreate.mockReset();
+    authMocks.getSession.mockReset();
+    cacheMocks.revalidateTag.mockReset();
+  });
+
+  it('happy path: renames two draft tiers', async () => {
+    const { userId, clinicId } = await createTestClinic({ readyToPublish: true });
+    try {
+      authMocks.getSession.mockResolvedValue({ user: { id: userId } });
+      const plan = await createDraftPlan(clinicId, { tierCount: 2 });
+      const tiers = await withClinic(clinicId, (tx) =>
+        tx.planTier.findMany({ where: { planId: plan.id }, orderBy: { ordering: 'asc' } }),
+      );
+
+      const result = await renameTiers({
+        planId: plan.id,
+        renames: [
+          { tierId: tiers[0]!.id, tierName: 'Wellness Starter' },
+          { tierId: tiers[1]!.id, tierName: 'Wellness Plus' },
+        ],
+      });
+
+      expect(result).toEqual({ ok: true });
+      const after = await withClinic(clinicId, (tx) =>
+        tx.planTier.findMany({ where: { planId: plan.id }, orderBy: { ordering: 'asc' } }),
+      );
+      expect(after[0]!.tierName).toBe('Wellness Starter');
+      expect(after[1]!.tierName).toBe('Wellness Plus');
+    } finally {
+      await cleanupClinic(clinicId, userId);
+    }
+  });
+
+  it('rejects rename on an already-published plan', async () => {
+    const { userId, clinicId } = await createTestClinic({ readyToPublish: true });
+    try {
+      authMocks.getSession.mockResolvedValue({ user: { id: userId } });
+      const plan = await createDraftPlan(clinicId, {
+        tierCount: 2,
+        status: 'published',
+        withStripeIds: true,
+      });
+      const tiers = await withClinic(clinicId, (tx) =>
+        tx.planTier.findMany({ where: { planId: plan.id }, orderBy: { ordering: 'asc' } }),
+      );
+
+      const result = await renameTiers({
+        planId: plan.id,
+        renames: [{ tierId: tiers[0]!.id, tierName: 'Renamed' }],
+      });
+
+      expect(result).toMatchObject({ ok: false, code: 'ALREADY_PUBLISHED' });
+    } finally {
+      await cleanupClinic(clinicId, userId);
+    }
+  });
+
+  it('rejects tier names containing HTML brackets (VALIDATION_FAILED)', async () => {
+    const { userId, clinicId } = await createTestClinic({ readyToPublish: true });
+    try {
+      authMocks.getSession.mockResolvedValue({ user: { id: userId } });
+      const plan = await createDraftPlan(clinicId, { tierCount: 2 });
+      const tiers = await withClinic(clinicId, (tx) =>
+        tx.planTier.findMany({ where: { planId: plan.id }, orderBy: { ordering: 'asc' } }),
+      );
+
+      const result = await renameTiers({
+        planId: plan.id,
+        renames: [{ tierId: tiers[0]!.id, tierName: 'Premium <script>' }],
+      });
+
+      expect(result).toMatchObject({ ok: false, code: 'VALIDATION_FAILED' });
+    } finally {
+      await cleanupClinic(clinicId, userId);
+    }
+  });
+});
+
+describe('updatePlanPrices', () => {
+  beforeEach(() => {
+    stripeMocks.productsCreate.mockReset();
+    stripeMocks.pricesCreate.mockReset();
+    authMocks.getSession.mockReset();
+    cacheMocks.revalidateTag.mockReset();
+  });
+
+  it('happy path: 1 changed + 1 unchanged price → 1 Stripe call, 1 PlanTier updated, history appended', async () => {
+    const { userId, clinicId, clinicSlug } = await createTestClinic({ readyToPublish: true });
+    try {
+      authMocks.getSession.mockResolvedValue({ user: { id: userId } });
+      const plan = await createDraftPlan(clinicId, {
+        tierCount: 2,
+        status: 'published',
+        withStripeIds: true,
+      });
+      const tiers = await withClinic(clinicId, (tx) =>
+        tx.planTier.findMany({ where: { planId: plan.id }, orderBy: { ordering: 'asc' } }),
+      );
+
+      stripeMocks.pricesCreate.mockResolvedValueOnce({
+        id: 'price_NEW_P1',
+        created: 1_700_000_100,
+      } as Stripe.Price);
+
+      const result = await updatePlanPrices({
+        planId: plan.id,
+        priceChanges: [
+          { tierId: tiers[0]!.id, newMonthlyFeeCents: 2100 }, // changed
+          { tierId: tiers[1]!.id, newMonthlyFeeCents: 1800 }, // unchanged (same as seed)
+        ],
+      });
+
+      expect(result).toMatchObject({ ok: true });
+      if (!result.ok) throw new Error('expected ok');
+      expect(result.updatedTiers).toHaveLength(1);
+      expect(result.updatedTiers[0]).toMatchObject({
+        tierId: tiers[0]!.id,
+        newPriceId: 'price_NEW_P1',
+        newUnitAmountCents: 2100,
+      });
+      expect(stripeMocks.pricesCreate).toHaveBeenCalledTimes(1);
+      expect(cacheMocks.revalidateTag).toHaveBeenCalledWith(`clinic:${clinicSlug}`, 'default');
+
+      const updated = await withClinic(clinicId, (tx) =>
+        tx.planTier.findUnique({ where: { id: tiers[0]!.id } }),
+      );
+      expect(updated?.monthlyFeeCents).toBe(2100);
+      expect(updated?.stripePriceId).toBe('price_NEW_P1');
+      const hist = updated?.stripePriceHistory as Array<{
+        priceId: string;
+        replacedAt: string | null;
+      }>;
+      expect(hist).toHaveLength(2);
+      expect(hist[0]!.replacedAt).not.toBeNull(); // old entry stamped
+      expect(hist[1]!.replacedAt).toBeNull(); // new entry active
+      expect(hist[1]!.priceId).toBe('price_NEW_P1');
+    } finally {
+      await cleanupClinic(clinicId, userId);
+    }
+  });
+
+  it('rejects updatePlanPrices on a draft plan (NO_DRAFT_PLAN)', async () => {
+    const { userId, clinicId } = await createTestClinic({ readyToPublish: true });
+    try {
+      authMocks.getSession.mockResolvedValue({ user: { id: userId } });
+      const plan = await createDraftPlan(clinicId, { tierCount: 2 });
+      const tiers = await withClinic(clinicId, (tx) =>
+        tx.planTier.findMany({ where: { planId: plan.id }, orderBy: { ordering: 'asc' } }),
+      );
+
+      const result = await updatePlanPrices({
+        planId: plan.id,
+        priceChanges: [{ tierId: tiers[0]!.id, newMonthlyFeeCents: 2100 }],
+      });
+
+      expect(result).toMatchObject({ ok: false, code: 'NO_DRAFT_PLAN' });
+      expect(stripeMocks.pricesCreate).not.toHaveBeenCalled();
+    } finally {
+      await cleanupClinic(clinicId, userId);
+    }
+  });
+
+  it('rejects out-of-range price via Zod (VALIDATION_FAILED)', async () => {
+    const { userId, clinicId } = await createTestClinic({ readyToPublish: true });
+    try {
+      authMocks.getSession.mockResolvedValue({ user: { id: userId } });
+      const plan = await createDraftPlan(clinicId, {
+        tierCount: 2,
+        status: 'published',
+        withStripeIds: true,
+      });
+      const tiers = await withClinic(clinicId, (tx) =>
+        tx.planTier.findMany({ where: { planId: plan.id }, orderBy: { ordering: 'asc' } }),
+      );
+
+      // 499_999 cents = $4,999.99 — exceeds max 100_000 ($1,000) enforced by Zod.
+      const result = await updatePlanPrices({
+        planId: plan.id,
+        priceChanges: [{ tierId: tiers[0]!.id, newMonthlyFeeCents: 499_999 }],
+      });
+
+      expect(result).toMatchObject({ ok: false, code: 'VALIDATION_FAILED' });
+      expect(stripeMocks.pricesCreate).not.toHaveBeenCalled();
     } finally {
       await cleanupClinic(clinicId, userId);
     }
