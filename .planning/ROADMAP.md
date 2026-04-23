@@ -12,7 +12,7 @@ PawPlan is a multi-tenant SaaS that lets an independent vet clinic owner publish
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** — Auth, tenancy with Postgres RLS, clinic profile, slug safety, break-even pure function with unit tests, and the 8-question builder with live client-side preview and draft persistence.
+- [x] **Phase 1: Foundation** — Auth, tenancy with Postgres RLS, clinic profile, slug safety, break-even pure function with unit tests, and the 8-question builder with live client-side preview and draft persistence.
 - [ ] **Phase 2: Stripe Connect Onboarding** — Create Express accounts, verify capability gating via `account.updated`, and surface onboarding status in the dashboard.
 - [ ] **Phase 3: Publish + Public Enrollment Page** — Server-side canonical break-even, Stripe Product/Price creation, unique `pawplan.app/{slug}/enroll` URL with ISR, and post-publish pricing edits that preserve existing subscriptions.
 - [ ] **Phase 4: Checkout + Subscription Lifecycle** — Stripe Checkout with destination charges, idempotent webhook handlers, member state machine (`active | past_due | canceled`), failed-charge flagging, and owner-initiated cancellation.
@@ -37,8 +37,8 @@ Plans:
 - [x] 01-01-PLAN.md — Next.js 16 + Tailwind v4 + shadcn/ui scaffold with Prisma Neon adapter + Vitest
 - [x] 01-02-PLAN.md — Break-even pure function `computeBreakEven` + 15-scenario Vitest suite (MATH-01, TDD)
 - [x] 01-03-PLAN.md — Prisma schema + Postgres RLS policies + `withClinic` helper + slug safety (FOUND-04, FOUND-05, FOUND-06)
-- [ ] 01-04-PLAN.md — Better Auth email/password + signup/login/logout UI + dashboard shell (FOUND-01, FOUND-02, FOUND-03)
-- [ ] 01-05-PLAN.md — 8-question plan builder with live break-even preview + draft persist + resume (BLDR-01..05)
+- [x] 01-04-PLAN.md — Better Auth email/password + signup/login/logout UI + dashboard shell (FOUND-01, FOUND-02, FOUND-03)
+- [x] 01-05-PLAN.md — 8-question plan builder with live break-even preview + draft persist + resume (BLDR-01..05)
 **UI hint**: yes
 
 ### Phase 2: Stripe Connect Onboarding
