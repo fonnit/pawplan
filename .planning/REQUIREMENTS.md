@@ -14,7 +14,7 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 
 ### Foundation (`FOUND`)
 
-- [ ] **FOUND-01**: Clinic owner can create an account with email + password
+- [x] **FOUND-01**: Clinic owner can create an account with email + password
 - [ ] **FOUND-02**: Clinic owner stays logged in across browser sessions
 - [ ] **FOUND-03**: Clinic owner can log out from any page
 - [ ] **FOUND-04**: Schema enforces per-clinic row-level isolation (RLS on every tenant-owned table)
@@ -108,7 +108,7 @@ Every v1 requirement maps to exactly one phase in ROADMAP.md. Coverage: **42/42*
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 1 | Pending |
+| FOUND-01 | Phase 1 | Complete |
 | FOUND-02 | Phase 1 | Pending |
 | FOUND-03 | Phase 1 | Pending |
 | FOUND-04 | Phase 1 | Pending |
