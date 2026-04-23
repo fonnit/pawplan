@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type Stripe from 'stripe';
 
-const mockUpsert = vi.fn();
-const mockUpdate = vi.fn();
-const mockRetrieve = vi.fn();
+const { mockUpsert, mockUpdate, mockRetrieve } = vi.hoisted(() => ({
+  mockUpsert: vi.fn(),
+  mockUpdate: vi.fn(),
+  mockRetrieve: vi.fn(),
+}));
 
 vi.mock('@/lib/db', () => ({
   prisma: {
@@ -65,12 +67,12 @@ function makeEvent(overrides: Partial<Stripe.Checkout.Session> = {}): Stripe.Eve
         customer: 'cus_test',
         customer_details: {
           email: 'owner@example.com',
-        } as Stripe.Checkout.Session.CustomerDetails,
+        } as Stripe.Checkout.Session['customer_details'],
         customer_email: null,
         custom_fields: [
           { key: 'pet_name', type: 'text', text: { value: 'Rex' } },
           { key: 'species', type: 'dropdown', dropdown: { value: 'dog' } },
-        ] as Stripe.Checkout.Session.CustomField[],
+        ] as NonNullable<Stripe.Checkout.Session['custom_fields']>,
         ...overrides,
       } as Stripe.Checkout.Session,
     },
@@ -107,7 +109,7 @@ describe('handleCheckoutSessionCompleted', () => {
 
   it('falls back to session.customer_email when customer_details.email missing', async () => {
     const evt = makeEvent({
-      customer_details: { email: null } as Stripe.Checkout.Session.CustomerDetails,
+      customer_details: { email: null } as Stripe.Checkout.Session['customer_details'],
       customer_email: 'fallback@example.com',
     });
     await handleCheckoutSessionCompleted(evt);
@@ -140,7 +142,7 @@ describe('handleCheckoutSessionCompleted', () => {
     const bad = makeEvent({
       custom_fields: [
         { key: 'species', type: 'dropdown', dropdown: { value: 'dog' } },
-      ] as Stripe.Checkout.Session.CustomField[],
+      ] as NonNullable<Stripe.Checkout.Session['custom_fields']>,
     });
     await expect(handleCheckoutSessionCompleted(bad)).rejects.toThrow(/custom_fields/);
     expect(mockUpsert).not.toHaveBeenCalled();
@@ -148,7 +150,7 @@ describe('handleCheckoutSessionCompleted', () => {
 
   it('skips (no-op) non-subscription sessions', async () => {
     const evt = makeEvent({
-      mode: 'payment' as Stripe.Checkout.Session.Mode,
+      mode: 'payment' as Stripe.Checkout.Session['mode'],
       subscription: null,
     });
     await handleCheckoutSessionCompleted(evt);

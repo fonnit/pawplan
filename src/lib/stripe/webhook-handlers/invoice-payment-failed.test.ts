@@ -3,8 +3,10 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import type Stripe from 'stripe';
 
-const mockFindUnique = vi.fn();
-const mockUpdate = vi.fn();
+const { mockFindUnique, mockUpdate } = vi.hoisted(() => ({
+  mockFindUnique: vi.fn(),
+  mockUpdate: vi.fn(),
+}));
 
 vi.mock('@/lib/db', () => ({
   prisma: {
