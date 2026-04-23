@@ -42,8 +42,8 @@ Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to ph
 
 ### Stripe Connect + Publish (`PUB`)
 
-- [ ] **PUB-01**: Clinic owner completes Stripe Connect Express onboarding during setup
-- [ ] **PUB-02**: Publish is gated on `charges_enabled && payouts_enabled && !requirements.disabled_reason` from Stripe `account.updated` webhook
+- [x] **PUB-01**: Clinic owner completes Stripe Connect Express onboarding during setup
+- [x] **PUB-02**: Publish is gated on `charges_enabled && payouts_enabled && !requirements.disabled_reason` from Stripe `account.updated` webhook
 - [ ] **PUB-03**: Publish action creates Stripe Product + Price per tier on the platform account
 - [ ] **PUB-04**: Publish generates unique public enrollment URL `pawplan.app/{clinic-slug}/enroll`
 - [ ] **PUB-05**: Public enrollment page renders server-side, mobile-responsive, shows tiers side-by-side with clinic name, logo, accent color
@@ -127,8 +127,8 @@ Every v1 requirement maps to exactly one phase in ROADMAP.md. Coverage: **42/42*
 | BLDR-06 | Phase 3 | Pending |
 | BLDR-07 | Phase 3 | Pending |
 | BLDR-08 | Phase 3 | Pending |
-| PUB-01 | Phase 2 | Pending |
-| PUB-02 | Phase 2 | Pending |
+| PUB-01 | Phase 2 | Complete |
+| PUB-02 | Phase 2 | Complete |
 | PUB-03 | Phase 3 | Pending |
 | PUB-04 | Phase 3 | Pending |
 | PUB-05 | Phase 3 | Pending |

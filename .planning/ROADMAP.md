@@ -13,7 +13,7 @@ PawPlan is a multi-tenant SaaS that lets an independent vet clinic owner publish
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** — Auth, tenancy with Postgres RLS, clinic profile, slug safety, break-even pure function with unit tests, and the 8-question builder with live client-side preview and draft persistence.
-- [ ] **Phase 2: Stripe Connect Onboarding** — Create Express accounts, verify capability gating via `account.updated`, and surface onboarding status in the dashboard.
+- [x] **Phase 2: Stripe Connect Onboarding** — Create Express accounts, verify capability gating via `account.updated`, and surface onboarding status in the dashboard.
 - [ ] **Phase 3: Publish + Public Enrollment Page** — Server-side canonical break-even, Stripe Product/Price creation, unique `pawplan.app/{slug}/enroll` URL with ISR, and post-publish pricing edits that preserve existing subscriptions.
 - [ ] **Phase 4: Checkout + Subscription Lifecycle** — Stripe Checkout with destination charges, idempotent webhook handlers, member state machine (`active | past_due | canceled`), failed-charge flagging, and owner-initiated cancellation.
 - [ ] **Phase 5: Notifications + Welcome Packet** — Async pg-boss queue, React-PDF welcome packet, Resend email delivery for pet-owner welcome and owner new-enrollment notifications.
@@ -53,9 +53,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Prisma schema extensions (Connect fields on Clinic, StripeEvent idempotency table, OnboardingState enum) + RLS + shared TS types (PUB-01, PUB-02)
-- [ ] 02-02-PLAN.md — `stripe@22.0.2` pinned client + webhook signature verification + idempotency helpers + 5-case unit test suite (PUB-02)
-- [ ] 02-03-PLAN.md — Connect UI (Connect Stripe card + onboarding banner + gated Publish button) + `/api/stripe/connect/{link,refresh}` + `/api/stripe/webhook` account.updated handler (PUB-01, PUB-02)
+- [x] 02-01-PLAN.md — Prisma schema extensions (Connect fields on Clinic, StripeEvent idempotency table, OnboardingState enum) + RLS + shared TS types (PUB-01, PUB-02)
+- [x] 02-02-PLAN.md — `stripe@22.0.2` pinned client + webhook signature verification + idempotency helpers + 5-case unit test suite (PUB-02)
+- [x] 02-03-PLAN.md — Connect UI (Connect Stripe card + onboarding banner + gated Publish button) + `/api/stripe/connect/{link,refresh}` + `/api/stripe/webhook` account.updated handler (PUB-01, PUB-02)
 **UI hint**: yes
 
 ### Phase 3: Publish + Public Enrollment Page
@@ -115,8 +115,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/5 | Not started | - |
-| 2. Stripe Connect Onboarding | 0/TBD | Not started | - |
+| 1. Foundation | 5/5 | Complete | 2026-04-23 |
+| 2. Stripe Connect Onboarding | 3/3 | Complete | 2026-04-23 |
 | 3. Publish + Public Enrollment Page | 0/TBD | Not started | - |
 | 4. Checkout + Subscription Lifecycle | 0/TBD | Not started | - |
 | 5. Notifications + Welcome Packet | 0/TBD | Not started | - |
