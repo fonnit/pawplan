@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Primary pad: large teal circle, offset left-center -->
+  <circle cx="224" cy="272" r="168" fill="#2F7F7F"/>
+  <!-- Satellite toe: smaller teal circle at 40% opacity, upper-right orbit -->
+  <circle cx="368" cy="136" r="72" fill="#2F7F7F" fill-opacity="0.4"/>
+</svg>

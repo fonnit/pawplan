@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 240" width="960" height="240">
+  <text
+    x="480"
+    y="168"
+    font-family="Inter, system-ui, sans-serif"
+    font-size="128"
+    font-weight="600"
+    letter-spacing="-0.035em"
+    text-anchor="middle"
+    dominant-baseline="auto"
+  ><tspan fill="#2F7F7F">Paw</tspan><tspan fill="#3D3A37">Plan</tspan></text>
+</svg>

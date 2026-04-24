@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+  <!-- Arc from ~-100° clockwise to ~250°, leaving gap at 11 o'clock -->
+  <path d="M 5.8 6.6 A 8 8 0 1 1 4.2 14.2" stroke="#2F7F7F" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+  <!-- Arrowhead at arc end, tangent pointing down-left -->
+  <polyline points="2.2 12.2 4.2 14.2 6.2 12.2" stroke="#2F7F7F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

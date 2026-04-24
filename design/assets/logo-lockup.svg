@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 320" width="960" height="320">
+  <!-- Mark group: 240x240 area anchored at x=40, y=40 (scale 240/512 ≈ 0.46875) -->
+  <g transform="translate(40, 40) scale(0.46875)">
+    <!-- Primary pad: large teal circle -->
+    <circle cx="224" cy="272" r="168" fill="#2F7F7F"/>
+    <!-- Satellite toe: smaller teal circle at 40% opacity, upper-right orbit -->
+    <circle cx="368" cy="136" r="72" fill="#2F7F7F" fill-opacity="0.4"/>
+  </g>
+  <!-- Wordmark group: optically centered to mark's visual mass center -->
+  <text
+    x="320"
+    y="175"
+    font-family="Inter, system-ui, sans-serif"
+    font-size="144"
+    font-weight="600"
+    letter-spacing="-0.035em"
+    text-anchor="start"
+    dominant-baseline="auto"
+  ><tspan fill="#2F7F7F">Paw</tspan><tspan fill="#3D3A37">Plan</tspan></text>
+</svg>
