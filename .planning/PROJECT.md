@@ -8,6 +8,32 @@ A self-serve wellness-plan builder for independently owned vet clinics. The owne
 
 **A clinic owner publishes pricing and lands their first paying member in the same session.** Confidence in the break-even math is the single point of failure — if the owner won't click Publish, every downstream capability (Stripe charging, enrollment, billing) is moot.
 
+## Current Milestone: v2.0 Visual Identity Redesign
+
+**Goal:** Ship the v2 design system across every user-facing surface without touching business logic, schema, routes, or server actions.
+
+**Target surfaces:**
+- Public enrollment page `/{clinic-slug}/enroll` — **signature moment**: clinic-first hero, left 45% typographic spine on warm paper, right 55% raster with right-edge bleed, pattern-grid-dot watermark at 15% opacity, no gradient wash, no rounded corners on raster
+- Dashboard home + metrics (MRR/ARR/renewal forecast/tier breakdown) — paper surface separated by rules + type weight, no drop-shadowed stat cards
+- Plan builder + publish flow (8-question flow, PublishedPlanPanel, EditTierPricesDialog, BreakEvenLineItems, Connect onboarding)
+- Members list (past_due filter, cancel action, services-remaining counter)
+- Auth: signup / login / logout
+- Email templates + React-PDF welcome packet
+- Empty states, error states, OG image, favicon, app icon
+
+**Source of truth:** `design/INTENT.md`, `design/tokens.json`, `design/theme.css`, `design/anti-patterns.md`, `design/assets-manifest.md`, `design/references.md`, `design/assets/` (7 SVG + 4 raster).
+
+**Brand rules (enforced everywhere):**
+- Instrument Serif > 32px, Inter < 32px, Berkeley Mono for every financial figure
+- Two-temperature palette: teal operational spine + amber warm moments; tokens locked in `design/tokens.json`
+- Warm paper (`--paper #FAF8F5`), warm ink; zero pure white surfaces
+- Asymmetric compositions, left-anchored, negative space as structure
+- No Tailwind teal-500, no default Tailwind neutral ramp, no paw-print clipart beyond logo-mark, no gradient hero overlays, no rounded shadowed stat cards, no centered hero + 3 cards + footer CTA, no friction-erasure adjectives (seamless, effortless, magic)
+
+**Hard constraint:** Zero functional changes. No schema, no new routes, no new server actions, no new features. Any phase requiring logic changes to land the redesign halts and surfaces.
+
+**Phase numbering:** continues from 7 (v1 phase directories remain at `01–06` for history).
+
 ## Requirements
 
 ### Validated
@@ -83,4 +109,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-23 after initialization*
+*Last updated: 2026-04-24 — v2.0 Visual Identity Redesign milestone started*

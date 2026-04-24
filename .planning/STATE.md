@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: phase-6-complete
-stopped_at: Completed Phase 6 (Dashboard Metrics + Redemption) — MRR/ARR/renewal-forecast cards, ServiceRedemption with DB-unique idempotency, clinic-tz render. PawPlan v1 feature set COMPLETE.
-last_updated: "2026-04-23T17:00:00.000Z"
-last_activity: 2026-04-23
+milestone: v2.0
+milestone_name: visual-identity-redesign
+status: defining-requirements
+stopped_at: Milestone v2.0 started — visual identity redesign across every user-facing surface. Source of truth at design/. Zero functional changes. Phase numbering continues from 7.
+last_updated: "2026-04-24T00:00:00.000Z"
+last_activity: 2026-04-24
 progress:
-  total_phases: 6
-  completed_phases: 6
-  total_plans: 18
-  completed_plans: 18
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-23)
 
 **Core value:** A clinic owner publishes pricing and lands their first paying member in the same session.
-**Current focus:** Phase 6 — Dashboard Metrics + Redemption (COMPLETE) → v1 milestone (demo-ship gate)
+**Current focus:** v2.0 Visual Identity Redesign — apply the design system at `design/` across every user-facing surface. Zero functional changes.
 
 ## Current Position
 
-Phase: 6 of 6 (Dashboard Metrics + Redemption) — COMPLETE
-Plan: 1 of 1 in current phase (executed as a single inline plan — 3 commit waves)
-Status: Phase 6 shipped — MRR breakdown (gross/Stripe/platform/net) + projected ARR + 30-day renewal forecast + tier breakdown on dashboard home, ServiceRedemption table with DB-unique idempotency and optimistic-lock scaffolding, Intl.DateTimeFormat + IANA-zone clinic-tz render throughout. PawPlan v1 feature set is COMPLETE.
-Last activity: 2026-04-23
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v2.0 Visual Identity Redesign
+Last activity: 2026-04-24 — Milestone v2.0 started
 
-Progress: [██████████] Phase 6 of 6 (100%)
+Progress: [          ] 0 of N phases (0%)
 
 ## Performance Metrics
 

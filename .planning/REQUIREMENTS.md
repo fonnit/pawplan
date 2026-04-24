@@ -1,164 +1,157 @@
-# PawPlan — v1 Requirements
+# PawPlan — v2.0 Requirements
 
-Traceability from MVP-SPEC.md §5 (Scope) and §6 (MoSCoW). Categories map to phases in ROADMAP.md.
+**Milestone:** v2.0 Visual Identity Redesign
+**Scope:** Apply the `design/` system across every user-facing surface. Zero functional changes.
+**Out of scope:** Schema edits, new routes, new server actions, new features. If a phase needs logic changes to land the redesign, halt and surface.
 
-## Locked Product Decisions
+Traceability from `design/INTENT.md`, `design/tokens.json`, `design/theme.css`, `design/anti-patterns.md`, `design/assets-manifest.md`.
+
+## Locked Design Decisions
 
 | Decision | Value | Source |
 |----------|-------|--------|
-| Platform application-fee percent | **10%** of every clinic subscription | Daniel, 2026-04-23 |
-| Failed-charge policy | **Smart Retries OFF.** Single failure flags the member in the dashboard. Clinic contacts client manually. No auto-email to pet owner. | Daniel, 2026-04-23 |
-| Accent color UX | **6-color preset palette.** No free color picker. | Daniel, 2026-04-23 |
+| Type system | Instrument Serif > 32px, Inter < 32px, **Berkeley Mono for every financial figure** (MRR, ARR, break-even, Stripe amounts, percentages, member counts, tier prices) | `design/INTENT.md` |
+| Palette | Teal (`oklch(0.52 0.13 196)` / `#2F7F7F`) operational spine + amber warm moments; tokens locked in `design/tokens.json`; no Tailwind teal-500 anywhere | `design/INTENT.md`, `design/anti-patterns.md` |
+| Surface color | Warm paper (`--paper #FAF8F5`); warm ink; **zero pure white surfaces** | `design/INTENT.md` |
+| Composition | Asymmetric, left-anchored headlines, negative space as structure | `design/INTENT.md` |
+| Enrollment hero | Clinic name (not PawPlan) leads in amber Instrument Serif; left 45% typographic spine on paper; right 55% raster with right-edge bleed; `pattern-grid-dot.svg` watermark at 15% opacity; no gradient wash | `design/INTENT.md` §Signature moment |
+| Dashboard stat cards | Rules + type weight separation on paper surface; **no rounded drop-shadowed cards** | `design/anti-patterns.md` |
+| Paw motifs | Only inside `logo-mark.svg`; no paw-print clipart in empty states, loaders, dividers, bullet markers | `design/anti-patterns.md` |
+| Social proof | None. No "Join thousands of clinics" row. The break-even math is the proof. | `design/anti-patterns.md` |
+| Voice | Grounded, confident, precise. Numbers first, prose second. No friction-erasure adjectives (seamless, effortless, magic). | `design/INTENT.md` |
 
-## v1 Requirements
+## v2.0 Requirements
 
-### Foundation (`FOUND`)
+### Design Tokens (`TOK`) — foundation layer
 
-- [x] **FOUND-01**: Clinic owner can create an account with email + password
-- [ ] **FOUND-02**: Clinic owner stays logged in across browser sessions
-- [ ] **FOUND-03**: Clinic owner can log out from any page
-- [x] **FOUND-04**: Schema enforces per-clinic row-level isolation (RLS on every tenant-owned table)
-- [x] **FOUND-05**: Clinic slug is unique, lowercase-ASCII, reserved-word-filtered, locked at creation
-- [x] **FOUND-06**: Single clinic profile (practice name required, logo optional, accent color from 6-preset palette)
+- [ ] **TOK-01**: `design/theme.css` wired into `src/app/globals.css` as the single source of design tokens (colors, spacing, radii, shadows, motion)
+- [ ] **TOK-02**: Tailwind v4 theme overrides reference tokens from `design/tokens.json` — every color class maps to a design token, no hex literals in component JSX
+- [ ] **TOK-03**: Font loading configured for Instrument Serif (variable, display axis), Inter (variable), and Berkeley Mono — all self-hosted via `next/font` or equivalent, no Google Fonts CDN in production
+- [ ] **TOK-04**: Every hardcoded Tailwind color class (`teal-500`, `gray-*`, `slate-*`, `bg-white`, etc.) purged from `src/` — replaced with token-driven classes
+- [ ] **TOK-05**: Base `body`/`html` surfaces render `--paper`, not browser-default white; `color-scheme: light` set explicitly; `prefers-color-scheme` honored with warm-dark fallback if dark mode exists
 
-### Break-Even Engine (`MATH`)
+### Typography System (`TYPO`)
 
-- [x] **MATH-01**: Pure function computes per-tier break-even math given 8 builder inputs + 10% platform fee
-- [x] **MATH-02**: Math runs client-side for live recompute during builder edits
-- [x] **MATH-03**: Math runs server-side at Publish for canonical pricing (same file as MATH-02)
-- [x] **MATH-04**: Line-by-line display: retail value bundled, monthly fee, clinic gross per enrolled pet per year, break-even member count
-- [x] **MATH-05**: Line items include all fees (Stripe processing estimate + 10% platform fee) so the number is unsurprising
+- [ ] **TYPO-01**: Every text element > 32px renders in Instrument Serif via a `.type-display` utility (or equivalent)
+- [ ] **TYPO-02**: Every text element ≤ 32px renders in Inter
+- [ ] **TYPO-03**: Every financial figure (MRR, ARR, gross/net/Stripe/platform fees, break-even member count, tier monthly price, Stripe amounts in tables, percentages on dashboard) renders in Berkeley Mono via a `<Figure>` component (or `.type-figure` utility) that tabular-nums and slashed-zero feature flags are set on
+- [ ] **TYPO-04**: Display-size Instrument Serif uses medium weight (500) with 1.1 line-height by default
+- [ ] **TYPO-05**: Inter body copy uses 1.6 line-height at 16px default
 
-### Plan Builder (`BLDR`)
+### Shared Components (`COMP`)
 
-- [ ] **BLDR-01**: 8-question builder captures species mix, annual exam price, dental price, core vaccine cadence + per-vaccine price, heartworm/flea-tick inclusion, member discount (0–20%), plan tier count (2 or 3)
-- [ ] **BLDR-02**: Owner can choose 2 or 3 tiers; default names Preventive / Preventive Plus / Complete
-- [ ] **BLDR-03**: Live break-even preview updates on every input change (MATH-02)
-- [ ] **BLDR-04**: Owner can return to the builder post-publish to edit prices (BLDR-08) without losing member data
-- [ ] **BLDR-05**: Draft plans persist to Postgres — never ephemeral
-- [x] **BLDR-06**: Owner edits tier names post-draft before publishing
-- [x] **BLDR-07**: Basic member record fields captured at enrollment: pet name, species, owner email, plan start date — collected inside Stripe Checkout `custom_fields` (pet_name text, species dropdown dog/cat)
-- [x] **BLDR-08**: Post-publish pricing edits use Stripe's new-Price-on-existing-Product pattern — existing subscriptions unaffected
+- [ ] **COMP-01**: `Button` component ships in three variants (solid-teal, ghost, destructive) with 48px default height, Inter 15px medium label, token-driven focus ring
+- [ ] **COMP-02**: `Card` / surface primitive renders paper-tone background with a 1px rule border (no shadow, no rounded >4px) — `variant="lifted"` is removed
+- [ ] **COMP-03**: `Input`, `Textarea`, `Select` ship with paper background, ink border on focus, no default Tailwind ring
+- [ ] **COMP-04**: `Dialog` / `Sheet` primitives render against paper backdrop (no white scrim) with ink text, serif header > 32px
+- [ ] **COMP-05**: `Table` / `DataTable` renders rules between rows, no alternating zebra, numeric columns right-aligned in Berkeley Mono
+- [ ] **COMP-06**: Empty-state primitive uses geometric illustration (not paw-print clipart) — falls back to `design/assets/illustrations/empty-state-members.png` for the members list
+- [ ] **COMP-07**: Loading indicator is a geometric motif (not paw prints) — token-driven motion timing
 
-### Stripe Connect + Publish (`PUB`)
+### Dashboard Shell + Nav (`SHELL`)
 
-- [x] **PUB-01**: Clinic owner completes Stripe Connect Express onboarding during setup
-- [x] **PUB-02**: Publish is gated on `charges_enabled && payouts_enabled && !requirements.disabled_reason` from Stripe `account.updated` webhook
-- [x] **PUB-03**: Publish action creates Stripe Product + Price per tier on the platform account
-- [x] **PUB-04**: Publish generates unique public enrollment URL `pawplan.app/{clinic-slug}/enroll`
-- [x] **PUB-05**: Public enrollment page renders server-side, mobile-responsive, shows tiers side-by-side with clinic name, logo, accent color
-- [x] **PUB-06**: Public page survives high-traffic newsletter-blast spikes (ISR or equivalent caching)
+- [ ] **SHELL-01**: Dashboard nav renders the `logo-lockup.svg` at 24px height, left-aligned, with the clinic name in Inter beside it
+- [ ] **SHELL-02**: Primary nav items render in Inter medium on paper, with ink active state (no teal pill backgrounds)
+- [ ] **SHELL-03**: Page headers across `/dashboard/*` use Instrument Serif 40px left-anchored with negative space above the metrics
+- [ ] **SHELL-04**: Logout / account menu renders as a serif menu item dropdown, no avatar circle, no teal accent
 
-### Checkout + Billing (`PAY`)
+### Dashboard Home Metrics (`DASH`)
 
-- [x] **PAY-01**: Stripe Checkout (hosted page, subscription mode) collects pet name + species + owner email + card
-- [x] **PAY-02**: Destination charges pattern: `transfer_data.destination = clinic.stripe_account_id`, `application_fee_percent = 10`
-- [x] **PAY-03**: Monthly recurring billing via Stripe Subscriptions
-- [x] **PAY-04**: Connect webhook handler is idempotent (stripe_events PK on event.id; returns 200 <200ms; fans out heavy work to a queue — queue deferred to Phase 5)
-- [x] **PAY-05**: `invoice.payment_failed` webhook flags the member record with status `past_due`; **no auto-email to pet owner in v1** (grep-guarded in source)
-- [x] **PAY-06**: `invoice.paid`, `customer.subscription.deleted` update member state atomically (customer.subscription.created deliberately NOT wired — Stripe emits it before checkout.session.completed and its payload lacks custom_fields; checkout.session.completed is the sole Member-creation event per 04-03)
-- [x] **PAY-07**: Member status is an enum — `active`, `past_due`, `canceled` — never a boolean
+- [ ] **DASH-01**: MRR gross/Stripe-fees/platform-fee/net card renders as four stacked rows separated by rules, all figures in Berkeley Mono, no drop shadow
+- [ ] **DASH-02**: Projected ARR card displays the single figure in Instrument Serif Medium 52px Berkeley Mono (display serif styled with monospace substitution for the figure itself) — caption in Inter 12px muted
+- [ ] **DASH-03**: 30-day renewal forecast card lists upcoming renewals as rule-separated rows, dates in Inter, amounts in Berkeley Mono
+- [ ] **DASH-04**: Tier breakdown card lists tier name + member count + MRR share; tier name Inter medium, count + share Berkeley Mono, no bars, no pie chart
+- [ ] **DASH-05**: Past-due members banner uses amber warm tone (not red), left-anchored copy, CTA as ghost button
+- [ ] **DASH-06**: All dashboard pages render on `--paper`, not white; zero `bg-white` classes remain
 
-### Notifications + Welcome Packet (`NOTIF`)
+### Plan Builder (`BUILDER`)
 
-- [x] **NOTIF-01**: On successful first charge, system generates a PDF welcome packet (plan name, included services, first billing date, clinic contact) — `@react-pdf/renderer` component in `src/lib/pdf/welcome-packet.tsx`, rendered in the `send-welcome-packet` worker (Phase 5)
-- [x] **NOTIF-02**: PDF is emailed to the pet owner as an attachment — delivered via **SendGrid** (not Resend; Daniel-locked switch) with sandbox mode FORCED ON for the public demo; `src/lib/jobs/send-welcome-packet.ts` (Phase 5)
-- [x] **NOTIF-03**: Owner receives an email notification of the new enrollment — separate pg-boss job `notify-owner-new-enrollment`, plain-text body, idempotent on `Member.ownerNotifiedAt` (Phase 5)
-- [x] **NOTIF-04**: Email delivery runs asynchronously via pg-boss@10 — webhook handler never imports SendGrid or react-pdf; grep-asserted in `src/lib/queue/webhook-hot-path.test.ts` across all 7 hot-path source files (Phase 5)
+- [ ] **BUILDER-01**: Builder shell is a two-column layout — questions left, live break-even preview right — no modal, no stepper progress bar on top
+- [ ] **BUILDER-02**: Break-even preview figures (retail value, monthly fee, clinic gross, break-even member count) all render in Berkeley Mono
+- [ ] **BUILDER-03**: Radio/checkbox groups render as text-style selects with ink underline on active (no filled circles, no teal fills)
+- [ ] **BUILDER-04**: Plan tier cards in the builder render on paper with rule borders, tier name in Instrument Serif 28px, price in Berkeley Mono 40px
+- [ ] **BUILDER-05**: Builder CTA ("Save draft", "Continue to publish") renders as teal solid-fill button per COMP-01
 
-### Dashboard + Redemption (`DASH`)
+### Publish Flow (`PUBFLOW`)
 
-- [x] **DASH-01**: Active member count, plan-tier breakdown, MRR (gross — fees — net), 30-day renewal forecast, projected ARR
-- [x] **DASH-02**: Per-member row: pet name, species, plan, enrollment date, next billing date, status badge, services remaining this cycle
-- [x] **DASH-03**: Failed-charge flag on the member record is visible and filterable (/dashboard/members past_due filter + past_due-first sort)
-- [x] **DASH-04**: Staff can toggle a checkbox per included service per billing period per member; idempotent on `(member_id, service_key, billing_period_start)`
-- [x] **DASH-05**: Owner can cancel a member subscription; prorates to end of billing period via `cancel_at_period_end: true`; status flip confirmed by webhook at period end. Confirmation-email to pet owner is Phase 5 NOTIF scope.
-- [x] **DASH-06**: Dashboard renders in clinic's time zone for display; all storage in UTC; `current_period_end` from Stripe is the truth
+- [ ] **PUBFLOW-01**: `PublishedPlanPanel` renders the published plan as a paper-tone surface with rule-separated tiers and Berkeley Mono prices; no card shadow
+- [ ] **PUBFLOW-02**: `EditTierPricesDialog` renders against paper backdrop, fields in Berkeley Mono for prices, amber-tone "unsaved changes" indicator if present
+- [ ] **PUBFLOW-03**: `BreakEvenLineItems` table uses COMP-05 style — rules, right-aligned Berkeley Mono, no zebra
+- [ ] **PUBFLOW-04**: Connect Stripe card + onboarding banner render in the v2 visual language: paper surface, ink copy, teal CTA, amber warning state (not red)
+- [ ] **PUBFLOW-05**: Gated Publish button renders per COMP-01 with disabled ghost state
 
-## v2 (Deferred)
+### Public Enrollment Page (`ENROLL`) — **signature surface**
 
-- Automated client communication beyond welcome packet (renewal reminders, expiring-card notices, dunning retry chains)
-- Custom domain / CNAME for enrollment page
-- Staff user accounts with RBAC
-- Pet-owner login/portal
-- Plan pause, freeze, tier-switch flows
-- Smart Retries ON with PawPlan-authored failed-payment emails to clients
-- CSV export of members
-- SMS notifications
-- Annual billing option
-- Referral / promo-code field
-- Species-specific plan templates (exotics, equine, livestock)
+- [ ] **ENROLL-01**: `/{clinic-slug}/enroll` hero lays out exactly per `design/INTENT.md` §Signature moment — left 45% typographic spine on paper, right 55% raster with right-edge bleed
+- [ ] **ENROLL-02**: Clinic name renders FIRST in the hero in amber Instrument Serif 18px tracked (not PawPlan — PawPlan appears only in footer)
+- [ ] **ENROLL-03**: Headline renders in ink Instrument Serif Medium 52px with 1.1 line-height, two lines
+- [ ] **ENROLL-04**: Sub-head renders in neutral-4 Inter Regular 16px with 1.6 line-height, max-width 420px
+- [ ] **ENROLL-05**: Hero CTA renders as a teal (`#2F7F7F`) solid-fill button 48px tall, paper label Inter Medium 15px, width matches left column
+- [ ] **ENROLL-06**: Price caption renders as Inter 12px neutral-4 with the monthly price figure itself in Berkeley Mono
+- [ ] **ENROLL-07**: Right column renders `design/assets/illustrations/enrollment-hero.png` with right-edge bleed, **no rounded corners, no drop shadow, no gradient overlay**
+- [ ] **ENROLL-08**: `design/assets/patterns/pattern-grid-dot.svg` sits behind the lower-left quadrant of the left column at 15% opacity
+- [ ] **ENROLL-09**: Tier comparison section below the hero renders as rule-separated rows with tier name in Instrument Serif 28px, price in Berkeley Mono 40px, feature list in Inter — no three-card grid
+- [ ] **ENROLL-10**: Footer renders "Powered by PawPlan" in Inter 11px neutral-4 — PawPlan's only appearance on the page
+- [ ] **ENROLL-11**: Mobile layout stacks left column above a full-width hero image (right-bleed preserved), no layout break below 320px width
+
+### Enrollment Success + Checkout-Return (`SUCCESS`)
+
+- [ ] **SUCCESS-01**: `/enroll/success` renders a single-column paper layout with Instrument Serif 52px headline ("Your plan is active"), Inter sub-head, and a single ghost CTA for next steps
+- [ ] **SUCCESS-02**: Dates + tier prices render in Berkeley Mono
+- [ ] **SUCCESS-03**: No success animation, no confetti, no celebratory emoji
+
+### Members List (`MEMBERS`)
+
+- [ ] **MEMBERS-01**: `/dashboard/members` renders per COMP-05 — rule-separated rows, Berkeley Mono for status dates + amounts
+- [ ] **MEMBERS-02**: Past-due filter chip renders as ink underline on active (no teal pill)
+- [ ] **MEMBERS-03**: Services-remaining counter renders as `3/4` in Berkeley Mono with an amber dot when ≤1 remaining
+- [ ] **MEMBERS-04**: Cancel member action surfaces in a Dialog per COMP-04 with amber warning tone (not red)
+- [ ] **MEMBERS-05**: Empty state uses `design/assets/illustrations/empty-state-members.png` per COMP-06, with ink Instrument Serif copy
+
+### Auth (`AUTH`)
+
+- [ ] **AUTH-01**: Signup page renders as a centered single-column paper layout, Instrument Serif 52px headline, Inter form labels, teal CTA per COMP-01
+- [ ] **AUTH-02**: Login page mirrors AUTH-01 with a secondary ghost link to signup
+- [ ] **AUTH-03**: Logout confirmation renders inline in the nav dropdown (no modal), no celebratory language
+- [ ] **AUTH-04**: Password-reset flow (if present) reuses AUTH-01 layout; no teal gradient backgrounds
+
+### Email + PDF (`EMAIL`)
+
+- [ ] **EMAIL-01**: Welcome-packet React-PDF template uses Instrument Serif for the title, Inter for body, Berkeley Mono for prices/dates — embed fonts in the PDF
+- [ ] **EMAIL-02**: Owner new-enrollment email template (SendGrid) uses paper-tone background with ink text, teal CTA — single column, no three-card grid
+- [ ] **EMAIL-03**: Pet-owner welcome email (SendGrid) matches EMAIL-02 layout with clinic-first subject line
+- [ ] **EMAIL-04**: Email footer renders small PawPlan wordmark inline with "Powered by PawPlan" caption, no social icons, no aggregate badges
+
+### Marketing Meta + Assets (`META`)
+
+- [ ] **META-01**: Favicon wired from `design/assets/logo-mark.svg` — SVG + ICO fallback
+- [ ] **META-02**: Apple touch icon wired from `logo-mark.svg` at 180px
+- [ ] **META-03**: OG image wired from `design/assets/og-image.png` — one per route, clinic-variant generated server-side on the enrollment page (clinic name overlay per INTENT if feasible, else static)
+- [ ] **META-04**: `<title>` format: `{Clinic Name} — Wellness membership` on enrollment pages; `PawPlan — {page}` in the dashboard. PawPlan does not lead the clinic-owned title.
+- [ ] **META-05**: Theme color meta tag set to `--paper` token value
+
+### Visual QA (`QA`)
+
+- [ ] **QA-01**: Anti-pattern audit passes — grep-based sweep for `teal-500`, `gray-900`, `bg-white`, `shadow-md`, `shadow-lg`, `rounded-xl` on stat cards, paw-print assets beyond logo, gradient overlays on hero, friction-erasure adjectives returns zero hits in `src/`
+- [ ] **QA-02**: Every financial figure in the rendered app uses Berkeley Mono (verified via DOM attribute scan or visual QA screenshot diff)
+- [ ] **QA-03**: `/browser-qa` passes the v1 critical flows against the v2 redesigned app: signup → Connect onboarding → plan builder → publish → public enrollment → Stripe checkout → dashboard metrics → members list → cancel
+- [ ] **QA-04**: Mobile QA passes across hero, dashboard, members list, builder at 320px/375px/768px
+- [ ] **QA-05**: Lighthouse visual regression score ≥ 90 for Accessibility on the redesigned enrollment page
+- [ ] **QA-06**: Deployed to `pawplan.demos.fonnit.com` with v2 live
+
+## Future Requirements
+
+- Dark-mode variant of the v2 system (warm-dark palette) — deferred; not in v2.0
+- Locale-aware currency formatting for Berkeley Mono figures — deferred; US-only today
+- Animated hero illustrations — deferred; print-object premise stays static
 
 ## Out of Scope
 
-- **PIMS integration (read or write)** — Shepherd, Cornerstone, AVImark, EzyVet, ImproMed, etc. Clinic-specific APIs double build time and don't defeat the publish-trust RAT.
-- **Multi-location / multi-tenant** — one clinic = one account = one Stripe Connect Express account. Two locations = two accounts.
-- **Client-facing portal or pet-owner login** — email is the only client channel.
-- **Non-Stripe merchant processors** — Square, Heartland, WorldPay. Stripe Connect Express is the proven rail.
-- **Automated service-redemption tracking** — no PIMS = no automation. Manual checkboxes are the v1 answer.
-- **Native iOS / Android app** — web only, mobile-responsive.
-- **Financial reporting beyond dashboard** — no QuickBooks, tax, payout reconciliation, per-service revenue breakdown, CLV.
-- **Compliance / regulatory tooling** — clinic owns VCPR docs and state disclosure.
-- **Species-specific plan variants** — dogs + cats only in v1.
-- **Appointment booking / scheduling.**
+- Any functional change (schema, routes, server actions, webhook logic, email trigger sites, queue handlers, Stripe integration) — if touched to land the redesign, halt the phase and surface
+- Net-new features — every capability in v1 is preserved as-is, only the visual layer changes
+- A/B tests on visual variants — v2 ships as a single definitive look
+- Tailwind-default color additions — only `design/tokens.json` colors, no `teal-500` escape hatch
 
 ## Traceability
 
-Every v1 requirement maps to exactly one phase in ROADMAP.md. Coverage: **42/42** ✓
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| FOUND-01 | Phase 1 | Complete |
-| FOUND-02 | Phase 1 | Pending |
-| FOUND-03 | Phase 1 | Pending |
-| FOUND-04 | Phase 1 | Complete |
-| FOUND-05 | Phase 1 | Complete |
-| FOUND-06 | Phase 1 | Complete |
-| MATH-01 | Phase 1 | Complete |
-| MATH-02 | Phase 3 | Complete |
-| MATH-03 | Phase 3 | Complete |
-| MATH-04 | Phase 3 | Complete |
-| MATH-05 | Phase 3 | Complete |
-| BLDR-01 | Phase 1 | Pending |
-| BLDR-02 | Phase 1 | Pending |
-| BLDR-03 | Phase 1 | Pending |
-| BLDR-04 | Phase 1 | Pending |
-| BLDR-05 | Phase 1 | Pending |
-| BLDR-06 | Phase 3 | Complete |
-| BLDR-07 | Phase 4 | Complete (collected inside Stripe Checkout custom_fields — pet_name + species dropdown) |
-| BLDR-08 | Phase 3 | Complete |
-| PUB-01 | Phase 2 | Complete |
-| PUB-02 | Phase 2 | Complete |
-| PUB-03 | Phase 3 | Complete |
-| PUB-04 | Phase 3 | Complete |
-| PUB-05 | Phase 3 | Complete |
-| PUB-06 | Phase 3 | Complete (k6 script committed; full load-run operator-driven pre-demo) |
-| PAY-01 | Phase 4 | Complete |
-| PAY-02 | Phase 4 | Complete |
-| PAY-03 | Phase 4 | Complete |
-| PAY-04 | Phase 4 | Complete |
-| PAY-05 | Phase 4 | Complete (grep-guarded in invoice-payment-failed.ts) |
-| PAY-06 | Phase 4 | Complete |
-| PAY-07 | Phase 4 | Complete (Postgres enum + TS union; zero boolean member flags) |
-| NOTIF-01 | Phase 5 | Complete |
-| NOTIF-02 | Phase 5 | Complete |
-| NOTIF-03 | Phase 5 | Complete |
-| NOTIF-04 | Phase 5 | Complete |
-| DASH-01 | Phase 6 | Complete (MRR gross/fees/platform/net + ARR + 30d forecast + tier breakdown cards on /dashboard) |
-| DASH-02 | Phase 6 | Complete (expandable members table with services-remaining X/Y + full date column set rendered via formatInClinicTz) |
-| DASH-03 | Phase 4 | Complete (dashboard past_due filter + attention-red badge color family) |
-| DASH-04 | Phase 6 | Complete (ServiceRedemption DB-unique index on (memberId, serviceKey, billingPeriodStart) + optimistic-lock scaffolding; 5-way concurrent insert test proves exactly-one-row) |
-| DASH-05 | Phase 4 | Complete (cancelMember server action + cancelSubscriptionAtPeriodEnd helper; optimistic UX) |
-| DASH-06 | Phase 6 | Complete (Intl.DateTimeFormat + IANA zones via Clinic.timezone; storage stays UTC; invalid-zone falls back to UTC) |
-
-### Per-Phase Summary
-
-| Phase | Requirements | Count |
-|-------|--------------|-------|
-| Phase 1: Foundation | FOUND-01, FOUND-02, FOUND-03, FOUND-04, FOUND-05, FOUND-06, MATH-01, BLDR-01, BLDR-02, BLDR-03, BLDR-04, BLDR-05 | 12 |
-| Phase 2: Stripe Connect Onboarding | PUB-01, PUB-02 | 2 |
-| Phase 3: Publish + Public Enrollment Page | MATH-02, MATH-03, MATH-04, MATH-05, BLDR-06, BLDR-07, BLDR-08, PUB-03, PUB-04, PUB-05, PUB-06 | 11 |
-| Phase 4: Checkout + Subscription Lifecycle | PAY-01, PAY-02, PAY-03, PAY-04, PAY-05, PAY-06, PAY-07, DASH-03, DASH-05 | 9 |
-| Phase 5: Notifications + Welcome Packet | NOTIF-01, NOTIF-02, NOTIF-03, NOTIF-04 | 4 |
-| Phase 6: Dashboard Metrics + Redemption | DASH-01, DASH-02, DASH-04, DASH-06 | 4 |
-| **Total** | | **42** |
+_Filled by the roadmapper (Step 10) — maps each REQ-ID to its phase._
