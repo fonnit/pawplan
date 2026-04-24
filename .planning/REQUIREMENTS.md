@@ -154,4 +154,82 @@ Traceability from `design/INTENT.md`, `design/tokens.json`, `design/theme.css`, 
 
 ## Traceability
 
-_Filled by the roadmapper (Step 10) — maps each REQ-ID to its phase._
+Every v2.0 REQ-ID maps to exactly one phase in `.planning/ROADMAP.md`. Coverage: 75 / 75.
+
+| Requirement | Phase | Status  |
+|-------------|-------|---------|
+| TOK-01      | 7     | Pending |
+| TOK-02      | 7     | Pending |
+| TOK-03      | 7     | Pending |
+| TOK-04      | 7     | Pending |
+| TOK-05      | 7     | Pending |
+| TYPO-01     | 7     | Pending |
+| TYPO-02     | 7     | Pending |
+| TYPO-03     | 7     | Pending |
+| TYPO-04     | 7     | Pending |
+| TYPO-05     | 7     | Pending |
+| COMP-01     | 8     | Pending |
+| COMP-02     | 8     | Pending |
+| COMP-03     | 8     | Pending |
+| COMP-04     | 8     | Pending |
+| COMP-05     | 8     | Pending |
+| COMP-06     | 8     | Pending |
+| COMP-07     | 8     | Pending |
+| SHELL-01    | 8     | Pending |
+| SHELL-02    | 8     | Pending |
+| SHELL-03    | 8     | Pending |
+| SHELL-04    | 8     | Pending |
+| DASH-01     | 9     | Pending |
+| DASH-02     | 9     | Pending |
+| DASH-03     | 9     | Pending |
+| DASH-04     | 9     | Pending |
+| DASH-05     | 9     | Pending |
+| DASH-06     | 9     | Pending |
+| MEMBERS-01  | 9     | Pending |
+| MEMBERS-02  | 9     | Pending |
+| MEMBERS-03  | 9     | Pending |
+| MEMBERS-04  | 9     | Pending |
+| MEMBERS-05  | 9     | Pending |
+| BUILDER-01  | 9     | Pending |
+| BUILDER-02  | 9     | Pending |
+| BUILDER-03  | 9     | Pending |
+| BUILDER-04  | 9     | Pending |
+| BUILDER-05  | 9     | Pending |
+| PUBFLOW-01  | 9     | Pending |
+| PUBFLOW-02  | 9     | Pending |
+| PUBFLOW-03  | 9     | Pending |
+| PUBFLOW-04  | 9     | Pending |
+| PUBFLOW-05  | 9     | Pending |
+| ENROLL-01   | 10    | Pending |
+| ENROLL-02   | 10    | Pending |
+| ENROLL-03   | 10    | Pending |
+| ENROLL-04   | 10    | Pending |
+| ENROLL-05   | 10    | Pending |
+| ENROLL-06   | 10    | Pending |
+| ENROLL-07   | 10    | Pending |
+| ENROLL-08   | 10    | Pending |
+| ENROLL-09   | 10    | Pending |
+| ENROLL-10   | 10    | Pending |
+| ENROLL-11   | 10    | Pending |
+| SUCCESS-01  | 10    | Pending |
+| SUCCESS-02  | 10    | Pending |
+| SUCCESS-03  | 10    | Pending |
+| AUTH-01     | 11    | Pending |
+| AUTH-02     | 11    | Pending |
+| AUTH-03     | 11    | Pending |
+| AUTH-04     | 11    | Pending |
+| EMAIL-01    | 11    | Pending |
+| EMAIL-02    | 11    | Pending |
+| EMAIL-03    | 11    | Pending |
+| EMAIL-04    | 11    | Pending |
+| META-01     | 11    | Pending |
+| META-02     | 11    | Pending |
+| META-03     | 11    | Pending |
+| META-04     | 11    | Pending |
+| META-05     | 11    | Pending |
+| QA-01       | 12    | Pending |
+| QA-02       | 12    | Pending |
+| QA-03       | 12    | Pending |
+| QA-04       | 12    | Pending |
+| QA-05       | 12    | Pending |
+| QA-06       | 12    | Pending |
